@@ -61,6 +61,15 @@ class TransactionController extends Controller
         return back()->with('success', 'Budget disimpan!');
     }
 
+    public function destroyBudget(string $kategori)
+    {
+        Budget::where('user_id', auth()->id())
+            ->where('kategori', $kategori)
+            ->delete();
+
+        return back()->with('success', 'Budget berhasil dihapus!');
+    }
+
     public function destroy(Transaction $transaction)
     {
         abort_if($transaction->user_id !== auth()->id(), 403);

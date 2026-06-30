@@ -131,12 +131,22 @@ const hapus = (id) => {
                         <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
                             <Wallet :size="12"/> Cashflow bulan ini
                         </CardTitle>
-                        <Badge class="border text-xs"
-                            :class="cashNet >= 0
-                                ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
-                                : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'">
-                            {{ cashNet >= 0 ? '+' : '' }}{{ fmt(cashNet) }}
-                        </Badge>
+                        <div class="flex items-center gap-2">
+                            <Badge class="border text-xs"
+                                :class="cashBurnPct > 90
+                                    ? 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'
+                                    : cashBurnPct > 70
+                                    ? 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900 dark:text-orange-400 dark:border-orange-700'
+                                    : 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'">
+                                {{ cashBurnPct > 90 ? 'Kritis' : cashBurnPct > 70 ? 'Waspada' : 'Sehat' }}
+                            </Badge>
+                            <Badge class="border text-xs"
+                                :class="cashNet >= 0
+                                    ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
+                                    : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'">
+                                {{ cashNet >= 0 ? '+' : '' }}{{ fmt(cashNet) }}
+                            </Badge>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent class="px-4 pb-4 space-y-3">
@@ -158,17 +168,28 @@ const hapus = (id) => {
                     <div>
                         <div class="flex justify-between text-xs text-zinc-500 mb-1.5">
                             <span>Pemakaian dari pemasukan</span>
-                            <span>{{ cashBurnPct }}%</span>
+                            <span :class="cashBurnPct > 90 ? 'text-red-500 font-semibold' : cashBurnPct > 70 ? 'text-orange-500 font-semibold' : ''">{{ cashBurnPct }}%</span>
                         </div>
-                        <Progress :model-value="cashBurnPct" class="h-2 bg-zinc-200 dark:bg-zinc-800"/>
+                        <div class="h-2 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+                            <div class="h-full rounded-full transition-all"
+                                :style="{ width: cashBurnPct + '%' }"
+                                :class="cashBurnPct > 90 ? 'bg-red-500' : cashBurnPct > 70 ? 'bg-orange-400' : 'bg-green-500'">
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-zinc-500">Saving rate</span>
-                        <span class="font-semibold" :class="cashSavePct >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                            {{ cashSavePct }}%
+                        <span class="font-semibold" :class="cashSavePct >= 20 ? 'text-green-600 dark:text-green-400' : cashSavePct >= 0 ? 'text-orange-500 dark:text-orange-400' : 'text-red-600 dark:text-red-400'">
+                            {{ cashSavePct >= 0 ? '+' : '' }}{{ cashSavePct }}%
                         </span>
                     </div>
+
+                    <a :href="route('keuangan.index')"
+                        class="flex items-center justify-between text-xs text-zinc-400 hover:text-yellow-500 dark:hover:text-yellow-400 transition-colors pt-1 border-t border-zinc-100 dark:border-zinc-800">
+                        <span>Lihat detail keuangan</span>
+                        <ChevronRight :size="13"/>
+                    </a>
                 </CardContent>
             </Card>
 

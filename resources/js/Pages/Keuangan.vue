@@ -11,7 +11,7 @@ import {
     Wallet, Calendar, Tag, StickyNote, Trash2, Loader2,
     UtensilsCrossed, Car, ShoppingBag, Film, HeartPulse, MoreHorizontal,
     Briefcase, Gift, PackageOpen, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle,
-    BarChart3, Target, PiggyBank
+    BarChart3, Target, PiggyBank, X
 } from 'lucide-vue-next'
 Chart.register(...registerables)
 
@@ -86,6 +86,11 @@ const submitBudget = () => {
 
 const hapus = (id) => {
     if (confirm('Hapus transaksi ini?')) router.delete(route('keuangan.destroy', id))
+}
+
+const hapusBudget = (kategori) => {
+    if (confirm(`Hapus budget "${kategori}"?`))
+        router.delete(route('keuangan.budget.destroy', kategori), { preserveScroll: true })
 }
 
 const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
@@ -188,19 +193,22 @@ const trendNet = computed(() => trendMonths.value.at(-1)?.net ?? 0)
 const trendPrevNet = computed(() => trendMonths.value.at(-2)?.net ?? 0)
 const trendDiff = computed(() => trendNet.value - trendPrevNet.value)
 
+const chartType = ref('line')
 const chartTrend = ref(null)
 let trendChart = null
 
-onMounted(() => {
+function buildChart() {
     if (!chartTrend.value) return
+    trendChart?.destroy()
 
     const dark = isDark.value
     const gridC = dark ? '#27272a' : '#e4e4e7'
-    const txtC = dark ? '#71717a' : '#52525b'
+    const txtC  = dark ? '#71717a' : '#52525b'
     const ptBdr = dark ? '#09090b' : '#ffffff'
+    const isBar = chartType.value === 'bar'
 
     trendChart = new Chart(chartTrend.value, {
-        type: 'line',
+        type: chartType.value,
         data: {
             labels: trendMonths.value.map(m => m.label),
             datasets: [
@@ -208,27 +216,44 @@ onMounted(() => {
                     label: 'Pemasukan',
                     data: trendMonths.value.map(m => m.income),
                     borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34,197,94,0.08)',
-                    borderWidth: 2,
-                    pointRadius: 4,
+                    backgroundColor: isBar ? 'rgba(34,197,94,0.6)' : 'rgba(34,197,94,0.08)',
+                    borderWidth: isBar ? 0 : 2,
+                    pointRadius: isBar ? 0 : 4,
                     pointBackgroundColor: '#22c55e',
                     pointBorderColor: ptBdr,
                     pointBorderWidth: 2,
                     fill: false,
                     tension: 0.4,
+                    borderRadius: isBar ? 4 : 0,
                 },
                 {
                     label: 'Pengeluaran',
                     data: trendMonths.value.map(m => m.expense),
                     borderColor: '#ef4444',
-                    backgroundColor: 'rgba(239,68,68,0.08)',
-                    borderWidth: 2,
-                    pointRadius: 4,
+                    backgroundColor: isBar ? 'rgba(239,68,68,0.6)' : 'rgba(239,68,68,0.08)',
+                    borderWidth: isBar ? 0 : 2,
+                    pointRadius: isBar ? 0 : 4,
                     pointBackgroundColor: '#ef4444',
                     pointBorderColor: ptBdr,
                     pointBorderWidth: 2,
                     fill: false,
                     tension: 0.4,
+                    borderRadius: isBar ? 4 : 0,
+                },
+                {
+                    label: 'Net',
+                    data: trendMonths.value.map(m => m.net),
+                    borderColor: '#eab308',
+                    backgroundColor: isBar ? 'rgba(234,179,8,0.5)' : 'rgba(234,179,8,0.08)',
+                    borderWidth: isBar ? 0 : 2,
+                    borderDash: isBar ? [] : [5, 3],
+                    pointRadius: isBar ? 0 : 3,
+                    pointBackgroundColor: '#eab308',
+                    pointBorderColor: ptBdr,
+                    pointBorderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    borderRadius: isBar ? 4 : 0,
                 },
             ],
         },
@@ -249,7 +274,9 @@ onMounted(() => {
             },
         },
     })
-})
+}
+
+onMounted(buildChart)
 
 onBeforeUnmount(() => {
     trendChart?.destroy()
@@ -400,12 +427,26 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                         <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
                             <BarChart3 :size="12"/> Tren 6 bulan
                         </CardTitle>
-                        <Badge class="border text-xs"
-                            :class="trendDiff >= 0
-                                ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
-                                : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'">
-                            {{ trendDiff >= 0 ? '+' : '' }}{{ fmt(trendDiff) }}
-                        </Badge>
+                        <div class="flex items-center gap-2">
+                            <div class="flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                                <button @click="chartType='line'; buildChart()"
+                                    class="px-2 py-0.5 text-xs rounded-md transition-colors"
+                                    :class="chartType==='line' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-400'">
+                                    Line
+                                </button>
+                                <button @click="chartType='bar'; buildChart()"
+                                    class="px-2 py-0.5 text-xs rounded-md transition-colors"
+                                    :class="chartType==='bar' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-400'">
+                                    Bar
+                                </button>
+                            </div>
+                            <Badge class="border text-xs"
+                                :class="trendDiff >= 0
+                                    ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
+                                    : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'">
+                                {{ trendDiff >= 0 ? '+' : '' }}{{ fmt(trendDiff) }}
+                            </Badge>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent class="px-4 pb-4">
@@ -472,14 +513,28 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                 <component :is="b.icon" :size="13" :class="b.color"/>
                                 {{ b.name }}
                             </button>
-                            <span class="text-xs font-medium" :class="b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.color">
-                                {{ b.percent }}% - {{ fmt(b.spent) }}
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-medium"
+                                    :class="b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.percent >= 80 ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-600 dark:text-zinc-300'">
+                                    {{ b.percent }}% · {{ fmt(b.spent) }}
+                                </span>
+                                <button v-if="b.limit > 0" type="button" @click="hapusBudget(b.name)"
+                                    class="p-1 rounded text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                    <X :size="11"/>
+                                </button>
+                            </div>
                         </div>
-                        <Progress :model-value="b.cappedPercent" class="h-1.5 bg-zinc-200 dark:bg-zinc-800"/>
+                        <div class="h-1.5 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
+                            <div class="h-full rounded-full transition-all"
+                                :style="{ width: b.cappedPercent + '%' }"
+                                :class="b.percent > 100 ? 'bg-red-500' : b.percent >= 80 ? 'bg-orange-400' : 'bg-green-500'">
+                            </div>
+                        </div>
                         <div class="flex justify-between text-xs text-zinc-500">
                             <span>Limit {{ fmt(b.limit) }}</span>
-                            <span>{{ b.percent > 100 ? 'Lewat ' + fmt(b.spent - b.limit) : 'Sisa ' + fmt(b.remaining) }}</span>
+                            <span :class="b.percent > 100 ? 'text-red-500 dark:text-red-400 font-medium' : ''">
+                                {{ b.percent > 100 ? '⚠ Lewat ' + fmt(b.spent - b.limit) : 'Sisa ' + fmt(b.remaining) }}
+                            </span>
                         </div>
                     </div>
                 </CardContent>

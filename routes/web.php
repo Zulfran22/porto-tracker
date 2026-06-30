@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/keuangan', [TransactionController::class, 'index'])->name('keuangan.index');
     Route::post('/keuangan', [TransactionController::class, 'store'])->name('keuangan.store');
     Route::post('/keuangan/budget', [TransactionController::class, 'storeBudget'])->name('keuangan.budget');
+    Route::delete('/keuangan/budget/{kategori}', [TransactionController::class, 'destroyBudget'])->name('keuangan.budget.destroy');
     Route::delete('/keuangan/{transaction}', [TransactionController::class, 'destroy'])->name('keuangan.destroy');
 
     // Proxy harga emas
