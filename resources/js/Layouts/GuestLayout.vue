@@ -8,10 +8,10 @@ import { Link } from '@inertiajs/vue3'
         <!-- Logo -->
         <Link href="/" class="flex items-center gap-3 mb-8 group">
             <div class="w-10 h-10 rounded-2xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/30 group-hover:shadow-yellow-500/50 transition-shadow">
-                <span class="text-sm font-black text-black tracking-tight">PT</span>
+                <span class="text-sm font-black text-black tracking-tight">WI</span>
             </div>
             <div>
-                <p class="font-bold text-zinc-900 dark:text-white text-base leading-tight">Porto Tracker</p>
+                <p class="font-bold text-zinc-900 dark:text-white text-base leading-tight">WealthID</p>
                 <p class="text-xs text-zinc-500 leading-tight">Investasi emas &amp; saving</p>
             </div>
         </Link>
@@ -21,6 +21,6 @@ import { Link } from '@inertiajs/vue3'
             <slot />
         </div>
 
-        <p class="mt-6 text-xs text-zinc-400">© {{ new Date().getFullYear() }} Porto Tracker</p>
+        <p class="mt-6 text-xs text-zinc-400">© {{ new Date().getFullYear() }} WealthID</p>
     </div>
 </template>

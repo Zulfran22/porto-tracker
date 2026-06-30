@@ -18,7 +18,7 @@ const features = [
 </script>
 
 <template>
-    <Head title="Porto Tracker — Investasi Emas &amp; Saving" />
+    <Head title="WealthID — Investasi Emas &amp; Saving" />
 
     <div class="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors">
 
@@ -29,7 +29,7 @@ const features = [
                     <div class="w-8 h-8 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
                         <span class="text-xs font-black text-black">PT</span>
                     </div>
-                    <span class="font-bold text-sm text-zinc-900 dark:text-white">Porto Tracker</span>
+                    <span class="font-bold text-sm text-zinc-900 dark:text-white">WealthID</span>
                 </div>
 
                 <nav v-if="canLogin" class="flex items-center gap-2">
@@ -102,7 +102,7 @@ const features = [
 
         <!-- FOOTER -->
         <footer class="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-xs text-zinc-400">
-            © {{ new Date().getFullYear() }} Porto Tracker — dibuat dengan ❤️ untuk tracking investasi pribadi
+            © {{ new Date().getFullYear() }} WealthID — dibuat dengan ❤️ untuk tracking investasi pribadi
         </footer>
     </div>
 </template>

@@ -1,4 +1,4 @@
-const CACHE = 'porto-tracker-v1'
+const CACHE = 'wealthid-v1'
 const OFFLINE_URL = '/dashboard'
 
 self.addEventListener('install', (e) => {

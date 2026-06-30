@@ -31,7 +31,7 @@ const submit = () => {
 
         <div class="mb-6">
             <h1 class="text-xl font-bold text-zinc-900 dark:text-white">Selamat datang</h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Masuk ke akun Porto Tracker kamu</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Masuk ke akun WealthID kamu</p>
         </div>
 
         <div v-if="status" class="mb-4 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-xl px-3 py-2.5">

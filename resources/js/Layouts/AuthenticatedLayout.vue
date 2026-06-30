@@ -48,9 +48,9 @@ const isActive = (item) => {
             <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
                 <Link :href="route('dashboard')" class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                        <span class="text-xs font-black text-black tracking-tight">PT</span>
+                        <span class="text-xs font-black text-black tracking-tight">WI</span>
                     </div>
-                    <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">Porto Tracker</span>
+                    <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">WealthID</span>
                 </Link>
 
                 <div class="flex items-center gap-2">
@@ -98,10 +98,10 @@ const isActive = (item) => {
 
                 <div class="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
                     <div class="w-9 h-9 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                        <span class="text-sm font-black text-black">PT</span>
+                        <span class="text-sm font-black text-black">WI</span>
                     </div>
                     <div>
-                        <p class="font-bold text-zinc-900 dark:text-white text-sm">Porto Tracker</p>
+                        <p class="font-bold text-zinc-900 dark:text-white text-sm">WealthID</p>
                         <p class="text-xs text-zinc-500">Investasi emas & saving</p>
                     </div>
                 </div>

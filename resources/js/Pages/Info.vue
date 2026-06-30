@@ -129,7 +129,7 @@ import {
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Info :size="12" class="text-zinc-400"/> Nama</span>
-                        <span class="text-zinc-900 dark:text-white font-semibold">Porto Tracker</span>
+                        <span class="text-zinc-900 dark:text-white font-semibold">WealthID</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Code2 :size="12" class="text-zinc-400"/> Stack</span>
