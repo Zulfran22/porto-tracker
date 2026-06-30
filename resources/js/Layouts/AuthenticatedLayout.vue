@@ -47,9 +47,7 @@ const isActive = (item) => {
         <header class="lg:hidden sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800/60 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md">
             <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
                 <Link :href="route('dashboard')" class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                        <span class="text-xs font-black text-black tracking-tight">WI</span>
-                    </div>
+                    <img src="/icons/icon.svg" alt="WealthID" class="w-8 h-8 rounded-xl shadow-lg shadow-yellow-500/20"/>
                     <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">WealthID</span>
                 </Link>
 
@@ -97,9 +95,7 @@ const isActive = (item) => {
             <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800">
 
                 <div class="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-                    <div class="w-9 h-9 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                        <span class="text-sm font-black text-black">WI</span>
-                    </div>
+                    <img src="/icons/icon.svg" alt="WealthID" class="w-9 h-9 rounded-xl shadow-lg shadow-yellow-500/20"/>
                     <div>
                         <p class="font-bold text-zinc-900 dark:text-white text-sm">WealthID</p>
                         <p class="text-xs text-zinc-500">Investasi emas & saving</p>

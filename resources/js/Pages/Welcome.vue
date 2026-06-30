@@ -26,9 +26,7 @@ const features = [
         <header class="sticky top-0 z-40 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-950/90 backdrop-blur-md">
             <div class="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-yellow-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-                        <span class="text-xs font-black text-black">PT</span>
-                    </div>
+                    <img src="/icons/icon.svg" alt="WealthID" class="w-8 h-8 rounded-xl shadow-lg shadow-yellow-500/20"/>
                     <span class="font-bold text-sm text-zinc-900 dark:text-white">WealthID</span>
                 </div>
 
