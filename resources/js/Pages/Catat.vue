@@ -10,6 +10,10 @@ import {
     StickyNote, Globe, Calendar, Loader2, AlertTriangle
 } from 'lucide-vue-next'
 
+const props = defineProps({
+    lastHargaEmas: { type: Number, default: null },
+})
+
 const now = new Date()
 const bulanDefault = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
 
@@ -44,7 +48,12 @@ async function fetchHargaEmas() {
         }
         form.harga_emas = data.pegadaian
     } catch {
-        errorHarga.value = 'Gagal ambil harga — isi manual.'
+        errorHarga.value = props.lastHargaEmas
+            ? `Gagal ambil harga — menggunakan harga terakhir (Rp${props.lastHargaEmas.toLocaleString('id-ID')}).`
+            : 'Gagal ambil harga — isi manual.'
+        if (props.lastHargaEmas && !form.harga_emas) {
+            form.harga_emas = props.lastHargaEmas
+        }
     } finally {
         loadingHarga.value = false
     }
@@ -144,6 +153,9 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                             <input type="number" v-model="form.harga_emas"
                                 placeholder="mis. 2545000" :class="inputClass"/>
                             <p v-if="form.errors.harga_emas" class="text-xs text-red-500 mt-1">{{ form.errors.harga_emas }}</p>
+                            <p v-else-if="lastHargaEmas && !form.harga_emas" class="text-xs text-zinc-400 mt-1">
+                                Harga bulan lalu: Rp{{ lastHargaEmas.toLocaleString('id-ID') }}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>

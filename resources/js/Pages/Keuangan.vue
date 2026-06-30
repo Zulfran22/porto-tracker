@@ -11,13 +11,16 @@ import {
     Wallet, Calendar, Tag, StickyNote, Trash2, Loader2,
     UtensilsCrossed, Car, ShoppingBag, Film, HeartPulse, MoreHorizontal,
     Briefcase, Gift, PackageOpen, TrendingUp, TrendingDown, ArrowDownCircle, ArrowUpCircle,
-    BarChart3, Target, PiggyBank, X
+    BarChart3, Target, PiggyBank, X, Download, RefreshCw, Plus, ToggleLeft, ToggleRight, Repeat2
 } from 'lucide-vue-next'
+import { exportCSV } from '@/Composables/useExport'
 Chart.register(...registerables)
 
 const props = defineProps({
     transactions: { type: Array, default: () => [] },
-    budgets: { type: Array, default: () => [] },
+    budgets:      { type: Array, default: () => [] },
+    recurrings:   { type: Array, default: () => [] },
+    customCats:   { type: Array, default: () => [] },
 })
 
 const { isDark } = useTheme()
@@ -92,6 +95,47 @@ const hapusBudget = (kategori) => {
     if (confirm(`Hapus budget "${kategori}"?`))
         router.delete(route('keuangan.budget.destroy', kategori), { preserveScroll: true })
 }
+
+// Export CSV keuangan
+const exportKeuangan = () => {
+    exportCSV('keuangan.csv',
+        ['Tanggal', 'Tipe', 'Kategori', 'Jumlah', 'Catatan'],
+        props.transactions.map(t => [t.tanggal, t.type, t.kategori, t.jumlah, t.catatan ?? ''])
+    )
+}
+
+// Recurring form
+const showRecurringForm = ref(false)
+const recurringForm = useForm({ type: 'expense', kategori: 'Makan', jumlah: '', catatan: '' })
+const submitRecurring = () => recurringForm.post(route('recurring.store'), {
+    preserveScroll: true,
+    onSuccess: () => { recurringForm.reset('jumlah', 'catatan'); showRecurringForm.value = false }
+})
+const applyRecurring = () => router.post(route('recurring.apply'), {}, { preserveScroll: true })
+const toggleRecurring = (id) => router.patch(route('recurring.toggle', id), {}, { preserveScroll: true })
+const hapusRecurring = (id) => { if (confirm('Hapus transaksi berulang ini?')) router.delete(route('recurring.destroy', id), { preserveScroll: true }) }
+
+// Custom categories
+const showCatForm = ref(false)
+const catForm = useForm({ type: 'expense', name: '' })
+const submitCat = () => catForm.post(route('kategori.store'), {
+    preserveScroll: true,
+    onSuccess: () => { catForm.reset('name'); showCatForm.value = false }
+})
+const hapusCat = (id) => router.delete(route('kategori.destroy', id), { preserveScroll: true })
+
+// All categories (default + custom) for the form
+const allExpenseKategori = computed(() => {
+    const custom = props.customCats.filter(c => c.type === 'expense').map(c => c.name)
+    return [...KATEGORI_EXPENSE.map(k => k.name), ...custom]
+})
+const allIncomeKategori = computed(() => {
+    const custom = props.customCats.filter(c => c.type === 'income').map(c => c.name)
+    return [...KATEGORI_INCOME.map(k => k.name), ...custom]
+})
+const currentKategoriList = computed(() =>
+    activeType.value === 'income' ? allIncomeKategori.value : allExpenseKategori.value
+)
 
 const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 
@@ -360,9 +404,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                     <Tag :size="12" class="text-zinc-400"/> Kategori
                                 </label>
                                 <select v-model="form.kategori" :class="inputClass">
-                                    <option v-for="k in (activeType === 'income' ? KATEGORI_INCOME : KATEGORI_EXPENSE)" :key="k.name" :value="k.name">
-                                        {{ k.name }}
-                                    </option>
+                                    <option v-for="k in currentKategoriList" :key="k" :value="k">{{ k }}</option>
                                 </select>
                             </div>
                         </div>
@@ -566,7 +608,14 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
 
             <!-- RIWAYAT -->
             <div>
-                <p class="text-xs text-zinc-500 uppercase tracking-widest mb-3 font-medium">Riwayat transaksi</p>
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Riwayat transaksi</p>
+                    <button @click="exportKeuangan"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs transition-colors">
+                        <Download :size="12"/>
+                        Export CSV
+                    </button>
+                </div>
 
                 <div v-if="!grouped.length" class="text-center py-12">
                     <Wallet :size="40" class="text-zinc-300 dark:text-zinc-700 mx-auto mb-3"/>
@@ -605,6 +654,174 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     </Card>
                 </div>
             </div>
+
+        <!-- Transaksi Berulang -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+                    <Repeat2 :size="16" class="text-yellow-500"/>
+                    Transaksi Berulang
+                </h2>
+                <div class="flex gap-2">
+                    <button @click="applyRecurring"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-medium transition-colors">
+                        <RefreshCw :size="12"/>
+                        Terapkan Bulan Ini
+                    </button>
+                    <button @click="showRecurringForm = !showRecurringForm"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-xs font-medium transition-colors">
+                        <Plus :size="12"/>
+                        Tambah
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form tambah recurring -->
+            <Card v-if="showRecurringForm" class="border-yellow-400/40 dark:border-yellow-600/30 bg-yellow-50/50 dark:bg-yellow-900/10">
+                <CardContent class="p-4 space-y-3">
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Transaksi Berulang</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Tipe</label>
+                            <select v-model="recurringForm.type"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                                <option value="expense">Pengeluaran</option>
+                                <option value="income">Pemasukan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Kategori</label>
+                            <select v-model="recurringForm.kategori"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                                <option v-for="k in (recurringForm.type === 'income' ? allIncomeKategori : allExpenseKategori)" :key="k" :value="k">{{ k }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Jumlah (Rp)</label>
+                            <input v-model="recurringForm.jumlah" type="number" placeholder="0" min="1"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                            <p v-if="recurringForm.errors.jumlah" class="text-xs text-red-500 mt-1">{{ recurringForm.errors.jumlah }}</p>
+                        </div>
+                        <div>
+                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Catatan (opsional)</label>
+                            <input v-model="recurringForm.catatan" type="text" placeholder="Contoh: Cicilan KPR"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button @click="showRecurringForm = false"
+                            class="px-4 py-2 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                            Batal
+                        </button>
+                        <button @click="submitRecurring" :disabled="recurringForm.processing"
+                            class="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                            <Loader2 v-if="recurringForm.processing" :size="14" class="animate-spin"/>
+                            Simpan
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- List recurring -->
+            <div v-if="recurrings.length === 0" class="text-center py-8 text-zinc-400 dark:text-zinc-600 text-sm">
+                Belum ada transaksi berulang
+            </div>
+            <Card v-else class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <CardContent class="p-0">
+                    <div v-for="(r, i) in recurrings" :key="r.id"
+                         class="flex items-center gap-3 px-4 py-3"
+                         :class="i < recurrings.length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''">
+                        <div class="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                            <component :is="kategoriInfo(r.type, r.kategori).icon" :size="15" :class="kategoriInfo(r.type, r.kategori).color"/>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-zinc-700 dark:text-zinc-200">{{ r.kategori }}</p>
+                            <p class="text-xs text-zinc-500">{{ r.catatan || (r.type === 'income' ? 'Pemasukan' : 'Pengeluaran') }} · {{ fmt(r.jumlah) }}</p>
+                        </div>
+                        <button @click="toggleRecurring(r.id)"
+                            :class="r.aktif ? 'text-green-500 hover:text-green-600' : 'text-zinc-400 hover:text-zinc-500'"
+                            class="p-1 transition-colors shrink-0" :title="r.aktif ? 'Aktif — klik untuk nonaktifkan' : 'Nonaktif — klik untuk aktifkan'">
+                            <component :is="r.aktif ? ToggleRight : ToggleLeft" :size="22"/>
+                        </button>
+                        <button @click="hapusRecurring(r.id)"
+                            class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
+                            <Trash2 :size="14"/>
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- Kategori Kustom -->
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+                    <Tag :size="16" class="text-yellow-500"/>
+                    Kategori Kustom
+                </h2>
+                <button @click="showCatForm = !showCatForm"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-xs font-medium transition-colors">
+                    <Plus :size="12"/>
+                    Tambah
+                </button>
+            </div>
+
+            <!-- Form tambah kategori -->
+            <Card v-if="showCatForm" class="border-yellow-400/40 dark:border-yellow-600/30 bg-yellow-50/50 dark:bg-yellow-900/10">
+                <CardContent class="p-4 space-y-3">
+                    <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Kategori Baru</p>
+                    <div class="flex gap-3">
+                        <select v-model="catForm.type"
+                            class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                            <option value="expense">Pengeluaran</option>
+                            <option value="income">Pemasukan</option>
+                        </select>
+                        <input v-model="catForm.name" type="text" placeholder="Nama kategori" maxlength="50"
+                            class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                    </div>
+                    <p v-if="catForm.errors.name" class="text-xs text-red-500">{{ catForm.errors.name }}</p>
+                    <div class="flex gap-2 justify-end">
+                        <button @click="showCatForm = false"
+                            class="px-4 py-2 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                            Batal
+                        </button>
+                        <button @click="submitCat" :disabled="catForm.processing || !catForm.name"
+                            class="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                            <Loader2 v-if="catForm.processing" :size="14" class="animate-spin"/>
+                            Simpan
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- List custom categories -->
+            <div v-if="customCats.length === 0" class="text-center py-6 text-zinc-400 dark:text-zinc-600 text-sm">
+                Belum ada kategori kustom
+            </div>
+            <div v-else class="grid grid-cols-1 gap-3">
+                <div v-for="tipe in ['expense', 'income']" :key="tipe">
+                    <div v-if="customCats.filter(c => c.type === tipe).length > 0">
+                        <p class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">
+                            {{ tipe === 'expense' ? 'Pengeluaran' : 'Pemasukan' }}
+                        </p>
+                        <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                            <CardContent class="p-0">
+                                <div v-for="(cat, i) in customCats.filter(c => c.type === tipe)" :key="cat.id"
+                                     class="flex items-center gap-3 px-4 py-3"
+                                     :class="i < customCats.filter(c => c.type === tipe).length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''">
+                                    <Tag :size="14" :class="tipe === 'income' ? 'text-green-500' : 'text-orange-500'"/>
+                                    <span class="flex-1 text-sm text-zinc-700 dark:text-zinc-200">{{ cat.name }}</span>
+                                    <button @click="hapusCat(cat.id)"
+                                        class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                        <Trash2 :size="14"/>
+                                    </button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         </div>
     </AuthenticatedLayout>

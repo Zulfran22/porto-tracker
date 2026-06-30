@@ -4,6 +4,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PortofolioController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\RecurringTransactionController;
+use App\Http\Controllers\CustomCategoryController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
@@ -19,7 +21,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [PortofolioController::class, 'index'])->name('dashboard');
 
     // Catat
-    Route::get('/catat', fn() => Inertia::render('Catat'))->name('portofolio.create');
+    Route::get('/catat', function () {
+        $last = \App\Models\Portofolio::where('user_id', auth()->id())
+            ->orderBy('bulan', 'desc')->first();
+        return Inertia::render('Catat', [
+            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+        ]);
+    })->name('portofolio.create');
 
     // Portofolio CRUD
     Route::post('/portofolio', [PortofolioController::class, 'store'])->name('portofolio.store');
@@ -46,6 +54,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/keuangan/budget', [TransactionController::class, 'storeBudget'])->name('keuangan.budget');
     Route::delete('/keuangan/budget/{kategori}', [TransactionController::class, 'destroyBudget'])->name('keuangan.budget.destroy');
     Route::delete('/keuangan/{transaction}', [TransactionController::class, 'destroy'])->name('keuangan.destroy');
+
+    // Recurring transactions
+    Route::post('/keuangan/recurring', [RecurringTransactionController::class, 'store'])->name('recurring.store');
+    Route::patch('/keuangan/recurring/{recurring}/toggle', [RecurringTransactionController::class, 'toggle'])->name('recurring.toggle');
+    Route::delete('/keuangan/recurring/{recurring}', [RecurringTransactionController::class, 'destroy'])->name('recurring.destroy');
+    Route::post('/keuangan/recurring/apply', [RecurringTransactionController::class, 'apply'])->name('recurring.apply');
+
+    // Custom categories
+    Route::post('/keuangan/kategori', [CustomCategoryController::class, 'store'])->name('kategori.store');
+    Route::delete('/keuangan/kategori/{category}', [CustomCategoryController::class, 'destroy'])->name('kategori.destroy');
 
     // Proxy harga emas
     Route::get('/api/harga-emas', function () {

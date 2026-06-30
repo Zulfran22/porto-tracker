@@ -10,8 +10,9 @@ import {
     Bell, AlertTriangle, AlertCircle,
     Lock, Coins, Shield, TrendingUp, Landmark, StickyNote,
     Pencil, Trash2, ChevronRight, Calendar, Wallet,
-    ArrowDownCircle, ArrowUpCircle
+    ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
+import { exportCSV } from '@/Composables/useExport'
 
 
 const props = defineProps({
@@ -86,8 +87,26 @@ const BEP     = 2861639
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
 const bepPct   = computed(() => Math.min(100, Math.round(hargaNow.value / BEP * 100)))
 
-const hapus = (id) => {
-    if (confirm('Hapus data ini?')) router.delete(route('portofolio.destroy', id))
+// Delete modal
+const deleteTarget = ref(null)
+const confirmHapus = (item) => { deleteTarget.value = item }
+const batalHapus   = () => { deleteTarget.value = null }
+const hapus = () => {
+    if (!deleteTarget.value) return
+    router.delete(route('portofolio.destroy', deleteTarget.value.id), {
+        onFinish: () => { deleteTarget.value = null }
+    })
+}
+
+// Export CSV
+const exportPortofolio = () => {
+    exportCSV('portofolio.csv',
+        ['Bulan', 'Emas Gram (tunai)', 'Harga Emas', 'Dana Darurat', 'Reksa Dana', 'SBN', 'Total', 'Catatan'],
+        props.portofolios.map(e => [
+            e.bulan, e.emas_gram, e.harga_emas, e.dana_darurat, e.reksa_dana, e.sbn,
+            Math.round(total(e)), e.catatan ?? ''
+        ])
+    )
 }
 </script>
 
@@ -411,7 +430,13 @@ const hapus = (id) => {
 
                 <!-- RIWAYAT -->
                 <div>
-                    <p class="text-xs text-zinc-500 uppercase tracking-widest mb-3 font-medium">Riwayat semua bulan</p>
+                    <div class="flex items-center justify-between mb-3">
+                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Riwayat semua bulan</p>
+                        <button @click="exportPortofolio"
+                            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-yellow-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors">
+                            <Download :size="12"/> Export CSV
+                        </button>
+                    </div>
                     <div v-for="item in [...portofolios].reverse()" :key="item.id" class="mb-2">
                         <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
                             <CardContent class="p-4">
@@ -423,7 +448,7 @@ const hapus = (id) => {
         class="p-1.5 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
         <Pencil :size="13"/>
     </a>
-    <button @click="hapus(item.id)"
+    <button @click="confirmHapus(item)"
         class="p-1.5 rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
         <Trash2 :size="13"/>
     </button>
@@ -457,4 +482,37 @@ const hapus = (id) => {
             </template>
         </div>
     </AuthenticatedLayout>
+
+    <!-- DELETE MODAL -->
+    <Teleport to="body">
+        <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
+            <div v-if="deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="batalHapus">
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
+                <div class="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+                    <div class="flex items-start gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                            <Trash2 :size="18" class="text-red-600 dark:text-red-400"/>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">Hapus data {{ deleteTarget?.bulan }}?</h3>
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Data portofolio bulan ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
+                        </div>
+                        <button @click="batalHapus" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                            <X :size="16"/>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="batalHapus"
+                            class="flex-1 py-2.5 rounded-xl text-sm font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            Batal
+                        </button>
+                        <button @click="hapus"
+                            class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors">
+                            <Trash2 :size="14"/> Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Transition>
+    </Teleport>
 </template>

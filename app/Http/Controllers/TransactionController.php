@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Budget;
+use App\Models\CustomCategory;
+use App\Models\RecurringTransaction;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,11 +18,15 @@ class TransactionController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $budgets = Budget::where('user_id', auth()->id())->get();
+        $budgets    = Budget::where('user_id', auth()->id())->get();
+        $recurrings = RecurringTransaction::where('user_id', auth()->id())->orderBy('type')->get();
+        $customCats = CustomCategory::where('user_id', auth()->id())->get();
 
         return Inertia::render('Keuangan', [
-            'transactions' => $transactions,
-            'budgets'      => $budgets,
+            'transactions'  => $transactions,
+            'budgets'       => $budgets,
+            'recurrings'    => $recurrings,
+            'customCats'    => $customCats,
         ]);
     }
 

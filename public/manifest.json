@@ -1,0 +1,20 @@
+{
+    "name": "Porto Tracker",
+    "short_name": "PortoTracker",
+    "description": "Tracking investasi emas & keuangan pribadi",
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "background_color": "#09090b",
+    "theme_color": "#eab308",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["finance", "productivity"],
+    "screenshots": []
+}
