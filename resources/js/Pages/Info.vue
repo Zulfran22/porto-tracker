@@ -7,9 +7,9 @@ import { Separator } from '@/Components/ui/separator'
 import {
     FileText, Target, PiggyBank, Info,
     Lock, Coins, Shield, TrendingUp, Landmark,
-    Clock, Calendar, Code2
+    Clock, Calendar, Code2, Hash
 } from 'lucide-vue-next'
-import { CICILAN, BEP, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
+import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
@@ -43,7 +43,7 @@ const alokasi = hitungAlokasiBulanan()
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas cicilan</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">5,0000 gram</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ CICILAN_GRAM.toFixed(4) }} gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Angsuran/bulan</span>
@@ -52,7 +52,7 @@ const alokasi = hitungAlokasiBulanan()
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Clock :size="12" class="text-red-500 dark:text-red-400"/> Batas bayar</span>
-                        <Badge class="bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-400 dark:border-red-700 border text-xs">Tanggal 04 tiap bulan</Badge>
+                        <Badge class="bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-400 dark:border-red-700 border text-xs">Tanggal {{ String(DUE_DATE_DAY).padStart(2, '0') }} tiap bulan</Badge>
                     </div>
                 </CardContent>
             </Card>
@@ -92,7 +92,7 @@ const alokasi = hitungAlokasiBulanan()
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400">Budget total</span>
-                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(3000000) }}</span>
+                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(DEFAULT_BUDGET) }}</span>
                     </div>
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
                     <div class="flex justify-between text-sm items-center">

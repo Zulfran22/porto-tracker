@@ -6,6 +6,7 @@ import { Badge } from '@/Components/ui/badge'
 import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
+import { CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 Chart.register(...registerables)
 
 const props = defineProps({ portofolios: Array })
@@ -20,7 +21,7 @@ const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
 const total = (e) =>
-    (Number(e.emas_gram) * Number(e.harga_emas)) + (5 * Number(e.harga_emas)) +
+    (Number(e.emas_gram) * Number(e.harga_emas)) + (CICILAN_GRAM * Number(e.harga_emas)) +
     Number(e.dana_darurat) + Number(e.reksa_dana) + Number(e.sbn)
 
 const last       = computed(() => props.portofolios.at(-1) ?? null)
@@ -31,9 +32,8 @@ const growthPct  = computed(() => {
     if (!first.value || totalFirst.value === 0) return 0
     return ((totalLast.value - totalFirst.value) / totalFirst.value * 100).toFixed(1)
 })
-const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + 5).toFixed(2) : 0)
+const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + CICILAN_GRAM).toFixed(2) : 0)
 const hargaSekarang  = computed(() => last.value ? Number(last.value.harga_emas) : 0)
-const BEP            = 2861639
 const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / BEP * 100)))
 const bepSisa        = computed(() => Math.max(0, BEP - hargaSekarang.value))
 

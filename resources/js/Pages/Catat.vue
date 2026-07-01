@@ -9,6 +9,7 @@ import {
     Lock, Coins, Shield, TrendingUp, Landmark,
     StickyNote, Globe, Calendar, Loader2, AlertTriangle
 } from 'lucide-vue-next'
+import { CICILAN } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
@@ -21,7 +22,7 @@ const form = useForm({
     bulan:        bulanDefault,
     emas_gram:    '',
     harga_emas:   '',
-    cicilan:      1032662,
+    cicilan:      CICILAN,
     dana_darurat: 0,
     reksa_dana:   0,
     sbn:          0,

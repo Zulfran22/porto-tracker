@@ -13,7 +13,7 @@ import {
     ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
 import { exportCSV } from '@/Composables/useExport'
-import { CICILAN, CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
+import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET } from '@/Composables/useFinanceConstants'
 
 
 const props = defineProps({
@@ -47,7 +47,7 @@ const cashBurnPct = computed(() => cashIncome.value > 0 ? Math.min(100, Math.rou
 const cashSavePct = computed(() => cashIncome.value > 0 ? Math.round(cashNet.value / cashIncome.value * 100) : 0)
 
 // Slider simulasi
-const budget = ref(3000000)
+const budget = ref(DEFAULT_BUDGET)
 const pDD    = ref(25)
 const pEM    = ref(40)
 const pRD    = ref(20)
@@ -77,10 +77,10 @@ const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
 // Reminder
 const today       = new Date()
 const todayDate   = today.getDate()
-const daysUntil04 = todayDate <= 4 ? 4 - todayDate : 30 - todayDate + 4
-const showReminder = computed(() => todayDate >= 1 && todayDate <= 6)
-const isUrgent     = computed(() => todayDate === 4)
-const isLate       = computed(() => todayDate > 4 && todayDate <= 6)
+const daysUntil04 = todayDate <= DUE_DATE_DAY ? DUE_DATE_DAY - todayDate : 30 - todayDate + DUE_DATE_DAY
+const showReminder = computed(() => todayDate >= 1 && todayDate <= DUE_DATE_DAY + 2)
+const isUrgent     = computed(() => todayDate === DUE_DATE_DAY)
+const isLate       = computed(() => todayDate > DUE_DATE_DAY && todayDate <= DUE_DATE_DAY + 2)
 
 // BEP
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
