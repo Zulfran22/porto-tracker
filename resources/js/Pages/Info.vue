@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
@@ -6,8 +7,24 @@ import { Separator } from '@/Components/ui/separator'
 import {
     FileText, Target, PiggyBank, Info,
     Lock, Coins, Shield, TrendingUp, Landmark,
-    Clock, Building2, Hash, Calendar, Code2
+    Clock, Calendar, Code2
 } from 'lucide-vue-next'
+import { CICILAN, BEP, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
+
+const props = defineProps({
+    lastHargaEmas: { type: Number, default: null },
+    lastCicilan:   { type: Number, default: null },
+})
+
+const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
+
+const cicilanBulanan = computed(() => props.lastCicilan ?? CICILAN)
+const hargaSekarang  = computed(() => props.lastHargaEmas)
+const bepGap         = computed(() => hargaSekarang.value
+    ? Math.max(0, Math.round((BEP - hargaSekarang.value) / BEP * 1000) / 10)
+    : null)
+
+const alokasi = hitungAlokasiBulanan()
 </script>
 
 <template>
@@ -25,33 +42,17 @@ import {
                 </CardHeader>
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Hash :size="12" class="text-zinc-400"/> No. kontrak</span>
-                        <span class="text-zinc-700 dark:text-zinc-300 text-xs font-mono">17805391142154415301</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas cicilan</span>
                         <span class="text-yellow-500 dark:text-yellow-400 font-semibold">5,0000 gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Angsuran/bulan</span>
-                        <span class="text-zinc-900 dark:text-white font-semibold">Rp1.032.662</span>
+                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(cicilanBulanan) }}</span>
                     </div>
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Clock :size="12" class="text-red-500 dark:text-red-400"/> Batas bayar</span>
                         <Badge class="bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-400 dark:border-red-700 border text-xs">Tanggal 04 tiap bulan</Badge>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><PiggyBank :size="12" class="text-zinc-400"/> Sewa modal total</span>
-                        <span class="text-zinc-700 dark:text-zinc-300">Rp2.033.750</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Calendar :size="12" class="text-zinc-400"/> Jatuh tempo</span>
-                        <span class="text-zinc-700 dark:text-zinc-300">04 Juni 2027</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Building2 :size="12" class="text-zinc-400"/> Cabang</span>
-                        <span class="text-zinc-700 dark:text-zinc-300">CP Bontang</span>
                     </div>
                 </CardContent>
             </Card>
@@ -66,20 +67,18 @@ import {
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Target :size="12" class="text-yellow-500 dark:text-yellow-400"/> BEP cicilan</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">Rp2.861.639/gram</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ fmt(BEP) }}/gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-zinc-400"/> Harga sekarang</span>
-                        <span class="text-zinc-700 dark:text-zinc-300">Rp2.545.000/gram</span>
+                        <span class="text-zinc-700 dark:text-zinc-300">{{ hargaSekarang ? fmt(hargaSekarang) + '/gram' : 'Belum ada data' }}</span>
                     </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-orange-500 dark:text-orange-400"/> Perlu naik</span>
-                        <span class="text-orange-500 dark:text-orange-400 font-semibold">~12,4% lagi</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Calendar :size="12" class="text-zinc-400"/> Estimasi BEP</span>
-                        <Badge class="bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-400 dark:border-green-700 border text-xs">1–2 tahun ke depan</Badge>
-                    </div>
+                    <template v-if="bepGap !== null">
+                        <div class="flex justify-between text-sm items-center">
+                            <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-orange-500 dark:text-orange-400"/> Perlu naik</span>
+                            <span class="text-orange-500 dark:text-orange-400 font-semibold">~{{ bepGap }}% lagi</span>
+                        </div>
+                    </template>
                 </CardContent>
             </Card>
 
@@ -93,28 +92,28 @@ import {
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400">Budget total</span>
-                        <span class="text-zinc-900 dark:text-white font-semibold">Rp3.000.000</span>
+                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(3000000) }}</span>
                     </div>
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Cicilan emas</span>
-                        <span class="text-yellow-600 font-medium">Rp1.032.662</span>
+                        <span class="text-yellow-600 font-medium">{{ fmt(cicilanBulanan) }}</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-medium">~Rp786.935</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-medium">~{{ fmt(alokasi.emas) }}</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat</span>
-                        <span class="text-blue-500 dark:text-blue-400 font-medium">~Rp491.835</span>
+                        <span class="text-blue-500 dark:text-blue-400 font-medium">~{{ fmt(alokasi.darurat) }}</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana</span>
-                        <span class="text-green-500 dark:text-green-400 font-medium">~Rp393.468</span>
+                        <span class="text-green-500 dark:text-green-400 font-medium">~{{ fmt(alokasi.reksa) }}</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN</span>
-                        <span class="text-purple-500 dark:text-purple-400 font-medium">~Rp295.100</span>
+                        <span class="text-purple-500 dark:text-purple-400 font-medium">~{{ fmt(alokasi.sbn) }}</span>
                     </div>
                 </CardContent>
             </Card>

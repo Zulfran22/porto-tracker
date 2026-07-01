@@ -1,6 +1,9 @@
 export function exportCSV(filename, headers, rows) {
     const escape = (v) => {
-        const s = String(v ?? '')
+        let s = String(v ?? '')
+        if (/^[=+\-@]/.test(s)) {
+            s = `'${s}`
+        }
         return s.includes(',') || s.includes('"') || s.includes('\n')
             ? `"${s.replace(/"/g, '""')}"`
             : s

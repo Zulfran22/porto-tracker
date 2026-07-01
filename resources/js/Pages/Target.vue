@@ -10,6 +10,7 @@ import {
     Coins, Shield, TrendingUp, Save,
     CheckCircle2, Loader2
 } from 'lucide-vue-next'
+import { CICILAN_GRAM, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     portofolios: Array,
@@ -30,7 +31,7 @@ const form = useForm({
 const saveTarget = () => form.put(route('target.update'))
 
 const HARGA_EMAS   = computed(() => last.value ? Number(last.value.harga_emas) : 2545000)
-const CICILAN_GRAM = 5
+const alokasi = hitungAlokasiBulanan()
 
 const emasSekarang    = computed(() => last.value ? Number(last.value.emas_gram) + CICILAN_GRAM : CICILAN_GRAM)
 const daruratSekarang = computed(() => last.value ? Number(last.value.dana_darurat) : 0)
@@ -45,8 +46,8 @@ const sisaDarurat = computed(() => Math.max(0, form.target_darurat - daruratSeka
 const sisaReksa   = computed(() => Math.max(0, form.target_reksa - reksaSekarang.value))
 
 const sisaBulanEmas    = computed(() => sisaEmas.value > 0 ? Math.ceil(sisaEmas.value / 0.5) : 0)
-const sisaBulanDarurat = computed(() => sisaDarurat.value > 0 ? Math.ceil(sisaDarurat.value / 491835) : 0)
-const sisaBulanReksa   = computed(() => sisaReksa.value > 0 ? Math.ceil(sisaReksa.value / 393468) : 0)
+const sisaBulanDarurat = computed(() => sisaDarurat.value > 0 ? Math.ceil(sisaDarurat.value / alokasi.darurat) : 0)
+const sisaBulanReksa   = computed(() => sisaReksa.value > 0 ? Math.ceil(sisaReksa.value / alokasi.reksa) : 0)
 
 function bulanKe(n) {
     if (n === 0) return 'Tercapai!'
@@ -162,7 +163,7 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Saving/bln</p>
-                            <p class="text-sm font-semibold text-blue-500 dark:text-blue-400">Rp491rb</p>
+                            <p class="text-sm font-semibold text-blue-500 dark:text-blue-400">{{ fmt(alokasi.darurat) }}</p>
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Est. tercapai</p>
@@ -209,7 +210,7 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Saving/bln</p>
-                            <p class="text-sm font-semibold text-green-500 dark:text-green-400">Rp393rb</p>
+                            <p class="text-sm font-semibold text-green-500 dark:text-green-400">{{ fmt(alokasi.reksa) }}</p>
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Est. tercapai</p>

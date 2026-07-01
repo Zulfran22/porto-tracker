@@ -13,6 +13,7 @@ import {
     ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
 import { exportCSV } from '@/Composables/useExport'
+import { CICILAN, CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 
 
 const props = defineProps({
@@ -29,7 +30,7 @@ const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 const total = (e) => {
     if (!e) return 0
     return (Number(e.emas_gram) * Number(e.harga_emas)) +
-           (5 * Number(e.harga_emas)) +
+           (CICILAN_GRAM * Number(e.harga_emas)) +
            Number(e.dana_darurat) +
            Number(e.reksa_dana) +
            Number(e.sbn)
@@ -53,7 +54,6 @@ const pRD    = ref(20)
 const pSB    = ref(15)
 const tahun  = ref(5)
 
-const CICILAN  = 1032662
 const sisa     = computed(() => Math.max(0, budget.value - CICILAN))
 const mDD      = computed(() => Math.round(sisa.value * pDD.value / 100))
 const mEM      = computed(() => Math.round(sisa.value * pEM.value / 100))
@@ -83,7 +83,6 @@ const isUrgent     = computed(() => todayDate === 4)
 const isLate       = computed(() => todayDate > 4 && todayDate <= 6)
 
 // BEP
-const BEP     = 2861639
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
 const bepPct   = computed(() => Math.min(100, Math.round(hargaNow.value / BEP * 100)))
 

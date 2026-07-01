@@ -42,7 +42,14 @@ Route::middleware('auth')->group(function () {
     })->name('grafik');
 
     // Info
-    Route::get('/info', fn() => Inertia::render('Info'))->name('info');
+    Route::get('/info', function () {
+        $last = \App\Models\Portofolio::where('user_id', auth()->id())
+            ->orderBy('bulan', 'desc')->first();
+        return Inertia::render('Info', [
+            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'lastCicilan'   => $last ? (int) $last->cicilan : null,
+        ]);
+    })->name('info');
 
     // Target
     Route::get('/target', [TargetController::class, 'index'])->name('target');
@@ -68,10 +75,10 @@ Route::middleware('auth')->group(function () {
     // Proxy harga emas
     Route::get('/api/harga-emas', function () {
         try {
-            $kurs = Http::get('https://api.frankfurter.app/latest?from=USD&to=IDR');
+            $kurs = Http::timeout(5)->get('https://api.frankfurter.app/latest?from=USD&to=IDR');
             $usdToIdr = $kurs->json()['rates']['IDR'];
 
-            $xau = Http::withHeaders(['User-Agent' => 'Mozilla/5.0'])
+            $xau = Http::timeout(5)->withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get('https://data-asg.goldprice.org/dbXRates/USD');
             $xauUsd = $xau->json()['items'][0]['xauPrice'] ?? 3280;
 
@@ -87,9 +94,10 @@ Route::middleware('auth')->group(function () {
                 'pegadaian' => $pegadaian,
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            report($e);
+            return response()->json(['success' => false, 'message' => 'Gagal mengambil harga emas terbaru.'], 502);
         }
-    });
+    })->middleware('throttle:30,1');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
