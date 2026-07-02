@@ -27,23 +27,22 @@ const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 // statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.
 const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
 const isCicilanEstimasi = computed(() => !props.aktifKontrak)
+const bepTarget         = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
 
-const total = (e) =>
-    (Number(e.emas_gram) * Number(e.harga_emas)) + (cicilanGram.value * Number(e.harga_emas)) +
-    Number(e.dana_darurat) + Number(e.reksa_dana) + Number(e.sbn)
-
+// Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber
+// kebenaran dengan gram cicilan dari kontrak aktif — lihat app/Models/Portofolio.php.
 const last       = computed(() => props.portofolios.at(-1) ?? null)
 const first      = computed(() => props.portofolios.at(0) ?? null)
-const totalLast  = computed(() => last.value ? total(last.value) : 0)
-const totalFirst = computed(() => first.value ? total(first.value) : 0)
+const totalLast  = computed(() => Number(last.value?.total ?? 0))
+const totalFirst = computed(() => Number(first.value?.total ?? 0))
 const growthPct  = computed(() => {
     if (!first.value || totalFirst.value === 0) return 0
     return ((totalLast.value - totalFirst.value) / totalFirst.value * 100).toFixed(1)
 })
 const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + cicilanGram.value).toFixed(2) : 0)
 const hargaSekarang  = computed(() => last.value ? Number(last.value.harga_emas) : 0)
-const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / BEP * 100)))
-const bepSisa        = computed(() => Math.max(0, BEP - hargaSekarang.value))
+const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / bepTarget.value * 100)))
+const bepSisa        = computed(() => Math.max(0, bepTarget.value - hargaSekarang.value))
 
 onMounted(() => {
     if (!props.portofolios.length) return
@@ -54,7 +53,7 @@ onMounted(() => {
     const ptBdr  = dark ? '#09090b' : '#ffffff'
 
     const labels  = props.portofolios.map(d => d.bulan)
-    const totals  = props.portofolios.map(d => Math.round(total(d)))
+    const totals  = props.portofolios.map(d => Math.round(d.total))
     const harga   = props.portofolios.map(d => Number(d.harga_emas))
     const grams   = props.portofolios.map(d => parseFloat(d.emas_gram))
     const darurat = props.portofolios.map(d => Number(d.dana_darurat))
@@ -92,7 +91,7 @@ onMounted(() => {
               backgroundColor: 'rgba(251,191,36,0.07)', borderWidth: 2,
               pointRadius: 5, pointBackgroundColor: '#fbbf24',
               pointBorderColor: ptBdr, pointBorderWidth: 2, fill: true, tension: 0.4 },
-            { label: 'BEP target', data: Array(labels.length).fill(BEP),
+            { label: 'BEP target', data: Array(labels.length).fill(bepTarget.value),
               borderColor: '#ef4444', borderDash: [6,4], borderWidth: 1.5, pointRadius: 0, fill: false },
         ]},
         options: {
@@ -219,8 +218,8 @@ onMounted(() => {
                                 <p class="text-xs font-semibold text-zinc-900 dark:text-white mt-0.5">{{ fmt(hargaSekarang) }}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-zinc-500">Target BEP</p>
-                                <p class="text-xs font-semibold text-red-500 dark:text-red-400 mt-0.5">{{ fmt(BEP) }}</p>
+                                <p class="text-xs text-zinc-500">Target BEP{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</p>
+                                <p class="text-xs font-semibold text-red-500 dark:text-red-400 mt-0.5">{{ fmt(bepTarget) }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-zinc-500">Kurang</p>

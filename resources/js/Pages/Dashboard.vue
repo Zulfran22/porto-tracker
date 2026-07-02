@@ -13,7 +13,7 @@ import {
     ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
 import { exportCSV } from '@/Composables/useExport'
-import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET } from '@/Composables/useFinanceConstants'
+import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, DEFAULT_ALLOC } from '@/Composables/useFinanceConstants'
 
 
 const props = defineProps({
@@ -30,21 +30,15 @@ const prev = computed(() => props.portofolios?.at(-2) ?? null)
 const cicilanGram     = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
 const cicilanBulanan  = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN)
 const isCicilanEstimasi = computed(() => !props.aktifKontrak)
+const bepTarget       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
 
 const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
-const total = (e) => {
-    if (!e) return 0
-    return (Number(e.emas_gram) * Number(e.harga_emas)) +
-           (cicilanGram.value * Number(e.harga_emas)) +
-           Number(e.dana_darurat) +
-           Number(e.reksa_dana) +
-           Number(e.sbn)
-}
-
-const totalLast = computed(() => total(last.value))
-const totalPrev = computed(() => total(prev.value))
+// Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber
+// kebenaran dengan gram cicilan dari kontrak aktif — lihat app/Models/Portofolio.php.
+const totalLast = computed(() => Number(last.value?.total ?? 0))
+const totalPrev = computed(() => Number(prev.value?.total ?? 0))
 const diff      = computed(() => totalLast.value - totalPrev.value)
 
 const cashIncome = computed(() => Number(props.cashflow?.income ?? 0))
@@ -55,10 +49,10 @@ const cashSavePct = computed(() => cashIncome.value > 0 ? Math.round(cashNet.val
 
 // Slider simulasi
 const budget = ref(DEFAULT_BUDGET)
-const pDD    = ref(25)
-const pEM    = ref(40)
-const pRD    = ref(20)
-const pSB    = ref(15)
+const pDD    = ref(DEFAULT_ALLOC.darurat)
+const pEM    = ref(DEFAULT_ALLOC.emas)
+const pRD    = ref(DEFAULT_ALLOC.reksa)
+const pSB    = ref(DEFAULT_ALLOC.sbn)
 const tahun  = ref(5)
 
 const sisa     = computed(() => Math.max(0, budget.value - cicilanBulanan.value))
@@ -81,17 +75,19 @@ const nilaiAkhir = computed(() =>
 const modalTotal  = computed(() => (mDD.value+mEM.value+mRD.value+mSB.value)*months.value)
 const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
 
-// Reminder
-const today       = new Date()
-const todayDate   = today.getDate()
-const daysUntil04 = todayDate <= DUE_DATE_DAY ? DUE_DATE_DAY - todayDate : 30 - todayDate + DUE_DATE_DAY
-const showReminder = computed(() => todayDate >= 1 && todayDate <= DUE_DATE_DAY + 2)
-const isUrgent     = computed(() => todayDate === DUE_DATE_DAY)
-const isLate       = computed(() => todayDate > DUE_DATE_DAY && todayDate <= DUE_DATE_DAY + 2)
+// Reminder — tanggal jatuh tempo diambil dari kontrak aktif kalau ada, kalau
+// tidak jatuh ke DUE_DATE_DAY sebagai estimasi (konsisten dengan cicilanGram/cicilanBulanan).
+const today        = new Date()
+const todayDate    = today.getDate()
+const dueDateDay   = computed(() => props.aktifKontrak ? new Date(props.aktifKontrak.tanggal_mulai).getDate() : DUE_DATE_DAY)
+const daysUntilDue = computed(() => todayDate <= dueDateDay.value ? dueDateDay.value - todayDate : 30 - todayDate + dueDateDay.value)
+const showReminder = computed(() => todayDate >= 1 && todayDate <= dueDateDay.value + 2)
+const isUrgent     = computed(() => todayDate === dueDateDay.value)
+const isLate       = computed(() => todayDate > dueDateDay.value && todayDate <= dueDateDay.value + 2)
 
 // BEP
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
-const bepPct   = computed(() => Math.min(100, Math.round(hargaNow.value / BEP * 100)))
+const bepPct   = computed(() => Math.min(100, Math.round(hargaNow.value / bepTarget.value * 100)))
 
 // Delete modal
 const deleteTarget = ref(null)
@@ -110,7 +106,7 @@ const exportPortofolio = () => {
         ['Bulan', 'Emas Gram (tunai)', 'Harga Emas', 'Dana Darurat', 'Reksa Dana', 'SBN', 'Total', 'Catatan'],
         props.portofolios.map(e => [
             e.bulan, e.emas_gram, e.harga_emas, e.dana_darurat, e.reksa_dana, e.sbn,
-            Math.round(total(e)), e.catatan ?? ''
+            Math.round(e.total), e.catatan ?? ''
         ])
     )
 }
@@ -144,7 +140,7 @@ const exportPortofolio = () => {
         <Bell :size="22" class="text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5"/>
         <div>
             <p class="text-sm font-semibold text-yellow-700 dark:text-yellow-400">Reminder cicilan emas</p>
-            <p class="text-xs text-yellow-600 dark:text-yellow-300/70 mt-0.5">Tanggal 04 — <strong>{{ daysUntil04 }} hari lagi</strong>. Siapkan {{ fmt(cicilanBulanan) }}</p>
+            <p class="text-xs text-yellow-600 dark:text-yellow-300/70 mt-0.5">Tanggal {{ String(dueDateDay).padStart(2, '0') }} — <strong>{{ daysUntilDue }} hari lagi</strong>. Siapkan {{ fmt(cicilanBulanan) }}</p>
         </div>
     </CardContent>
 </Card>
@@ -292,12 +288,12 @@ const exportPortofolio = () => {
                                 <p class="text-xs font-medium text-zinc-900 dark:text-white mt-0.5">{{ fmt(hargaNow) }}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-zinc-500">Target BEP</p>
-                                <p class="text-xs font-medium text-red-500 dark:text-red-400 mt-0.5">{{ fmt(BEP) }}</p>
+                                <p class="text-xs text-zinc-500">Target BEP{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</p>
+                                <p class="text-xs font-medium text-red-500 dark:text-red-400 mt-0.5">{{ fmt(bepTarget) }}</p>
                             </div>
                             <div>
                                 <p class="text-xs text-zinc-500">Kurang</p>
-                                <p class="text-xs font-medium text-orange-500 dark:text-orange-400 mt-0.5">{{ fmt(Math.max(0, BEP - hargaNow)) }}</p>
+                                <p class="text-xs font-medium text-orange-500 dark:text-orange-400 mt-0.5">{{ fmt(Math.max(0, bepTarget - hargaNow)) }}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -357,7 +353,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <Wallet :size="12" class="text-zinc-400"/> Budget/bln
             </span>
-            <input type="range" v-model="budget" min="2000000" max="6000000" step="100000" class="flex-1 accent-yellow-400 h-1.5">
+            <input type="range" v-model.number="budget" min="2000000" max="6000000" step="100000" class="flex-1 accent-yellow-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-zinc-900 dark:text-white">{{ fmt(budget) }}</span>
         </div>
 
@@ -366,7 +362,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat
             </span>
-            <input type="range" v-model="pDD" min="0" max="100" step="5" class="flex-1 accent-blue-400 h-1.5">
+            <input type="range" v-model.number="pDD" min="0" max="100" step="5" class="flex-1 accent-blue-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-blue-500 dark:text-blue-400">{{ pDD }}% · {{ fmt(mDD) }}</span>
         </div>
 
@@ -375,7 +371,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai
             </span>
-            <input type="range" v-model="pEM" min="0" max="100" step="5" class="flex-1 accent-yellow-400 h-1.5">
+            <input type="range" v-model.number="pEM" min="0" max="100" step="5" class="flex-1 accent-yellow-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-yellow-500 dark:text-yellow-400">{{ pEM }}% · {{ fmt(mEM) }}</span>
         </div>
 
@@ -384,7 +380,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana
             </span>
-            <input type="range" v-model="pRD" min="0" max="100" step="5" class="flex-1 accent-green-400 h-1.5">
+            <input type="range" v-model.number="pRD" min="0" max="100" step="5" class="flex-1 accent-green-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-green-500 dark:text-green-400">{{ pRD }}% · {{ fmt(mRD) }}</span>
         </div>
 
@@ -393,7 +389,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN
             </span>
-            <input type="range" v-model="pSB" min="0" max="100" step="5" class="flex-1 accent-purple-400 h-1.5">
+            <input type="range" v-model.number="pSB" min="0" max="100" step="5" class="flex-1 accent-purple-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-purple-500 dark:text-purple-400">{{ pSB }}% · {{ fmt(mSB) }}</span>
         </div>
 
@@ -402,7 +398,7 @@ const exportPortofolio = () => {
             <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
                 <Calendar :size="12" class="text-zinc-400"/> Durasi
             </span>
-            <input type="range" v-model="tahun" min="1" max="10" step="1" class="flex-1 accent-zinc-400 h-1.5">
+            <input type="range" v-model.number="tahun" min="1" max="10" step="1" class="flex-1 accent-zinc-400 h-1.5">
             <span class="text-xs font-medium w-28 text-right shrink-0 text-zinc-900 dark:text-white">{{ tahun }} tahun</span>
         </div>
 
@@ -449,7 +445,7 @@ const exportPortofolio = () => {
                                 <div class="flex justify-between items-center mb-3">
                                     <span class="font-semibold text-zinc-900 dark:text-white">{{ item.bulan }}</span>
                                     <div class="flex items-center gap-2">
-    <span class="text-yellow-500 dark:text-yellow-400 font-semibold text-sm">{{ fmtJt(total(item)) }}</span>
+    <span class="text-yellow-500 dark:text-yellow-400 font-semibold text-sm">{{ fmtJt(item.total) }}</span>
     <a :href="route('portofolio.edit', item.id)"
         class="p-1.5 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
         <Pencil :size="13"/>

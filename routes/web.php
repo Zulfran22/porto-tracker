@@ -98,18 +98,20 @@ Route::middleware('auth')->group(function () {
 
             $xau = Http::timeout(5)->withHeaders(['User-Agent' => 'Mozilla/5.0'])
                 ->get('https://data-asg.goldprice.org/dbXRates/USD');
-            $xauUsd = $xau->json()['items'][0]['xauPrice'] ?? 3280;
+            $xauUsd = $xau->json()['items'][0]['xauPrice'] ?? config('gold.fallback_xau_price');
 
+            $markup     = config('gold.pegadaian_markup');
             $perGramUsd = $xauUsd / 31.1035;
             $perGramIdr = round($perGramUsd * $usdToIdr);
-            $pegadaian  = round($perGramIdr * 1.04);
+            $pegadaian  = round($perGramIdr * $markup);
 
             return response()->json([
-                'success'   => true,
-                'xau_usd'   => round($xauUsd, 2),
-                'usd_idr'   => round($usdToIdr),
-                'spot_idr'  => $perGramIdr,
-                'pegadaian' => $pegadaian,
+                'success'        => true,
+                'xau_usd'        => round($xauUsd, 2),
+                'usd_idr'        => round($usdToIdr),
+                'spot_idr'       => $perGramIdr,
+                'pegadaian'      => $pegadaian,
+                'markup_percent' => round(($markup - 1) * 100),
             ]);
         } catch (\Exception $e) {
             report($e);

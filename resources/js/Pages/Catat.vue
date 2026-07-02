@@ -48,10 +48,11 @@ async function fetchHargaEmas() {
         const data = await res.json()
         if (!data.success) throw new Error(data.message)
         hargaFetched.value = {
-            xauUsd:    data.xau_usd.toFixed(2),
-            usdIdr:    data.usd_idr.toLocaleString('id-ID'),
-            spotIdr:   data.spot_idr.toLocaleString('id-ID'),
-            pegadaian: data.pegadaian,
+            xauUsd:        data.xau_usd.toFixed(2),
+            usdIdr:        data.usd_idr.toLocaleString('id-ID'),
+            spotIdr:       data.spot_idr.toLocaleString('id-ID'),
+            pegadaian:     data.pegadaian,
+            markupPercent: data.markup_percent,
         }
         form.harga_emas = data.pegadaian
     } catch {
@@ -153,7 +154,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                 </div>
                                 <Separator class="bg-zinc-200 dark:bg-zinc-700 my-1"/>
                                 <div class="flex justify-between text-xs">
-                                    <span class="text-yellow-600 dark:text-yellow-400 font-medium">Est. Pegadaian (+4%)</span>
+                                    <span class="text-yellow-600 dark:text-yellow-400 font-medium">Est. Pegadaian (+{{ hargaFetched.markupPercent }}%)</span>
                                     <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.pegadaian.toLocaleString('id-ID') }}</span>
                                 </div>
                                 <p class="text-zinc-400 text-xs">*Selalu cek harga aktual di app Pegadaian</p>

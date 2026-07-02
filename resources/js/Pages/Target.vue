@@ -10,7 +10,7 @@ import {
     Coins, Shield, TrendingUp, Save,
     CheckCircle2, Loader2
 } from 'lucide-vue-next'
-import { CICILAN_GRAM, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
+import { CICILAN, CICILAN_GRAM, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     portofolios: Array,
@@ -31,14 +31,15 @@ const form = useForm({
 
 const saveTarget = () => form.put(route('target.update'))
 
-// Gram cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
+// Gram & angsuran cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
 // statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.
 const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
+const cicilanBulanan    = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN)
 const isCicilanEstimasi = computed(() => !props.aktifKontrak)
 
 // Tanpa data portofolio, harga emas belum diketahui — jangan menebak angka, tampilkan "belum ada data".
 const HARGA_EMAS   = computed(() => last.value ? Number(last.value.harga_emas) : null)
-const alokasi = hitungAlokasiBulanan()
+const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
 
 const emasSekarang    = computed(() => last.value ? Number(last.value.emas_gram) + cicilanGram.value : cicilanGram.value)
 const daruratSekarang = computed(() => last.value ? Number(last.value.dana_darurat) : 0)
@@ -52,7 +53,13 @@ const sisaEmas    = computed(() => Math.max(0, form.target_emas - emasSekarang.v
 const sisaDarurat = computed(() => Math.max(0, form.target_darurat - daruratSekarang.value))
 const sisaReksa   = computed(() => Math.max(0, form.target_reksa - reksaSekarang.value))
 
-const sisaBulanEmas    = computed(() => sisaEmas.value > 0 ? Math.ceil(sisaEmas.value / 0.5) : 0)
+// Alokasi emas (Rupiah/bulan) dikonversi ke gram/bulan pakai harga emas terakhir —
+// sebelumnya dihitung pakai asumsi tetap 0.5 gram/bulan yang tidak nyambung dengan alokasi budget.
+const gramEmasPerBulan = computed(() => HARGA_EMAS.value ? alokasi.emas / HARGA_EMAS.value : 0)
+const sisaBulanEmas    = computed(() => {
+    if (sisaEmas.value <= 0) return 0
+    return gramEmasPerBulan.value > 0 ? Math.ceil(sisaEmas.value / gramEmasPerBulan.value) : null
+})
 const sisaBulanDarurat = computed(() => sisaDarurat.value > 0 ? Math.ceil(sisaDarurat.value / alokasi.darurat) : 0)
 const sisaBulanReksa   = computed(() => sisaReksa.value > 0 ? Math.ceil(sisaReksa.value / alokasi.reksa) : 0)
 
@@ -128,7 +135,7 @@ const nilaiEmasSkrg   = computed(() => HARGA_EMAS.value !== null ? emasSekarang.
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Est. tercapai</p>
                             <p class="text-xs font-semibold" :class="sisaBulanEmas === 0 ? 'text-green-500 dark:text-green-400' : 'text-zinc-600 dark:text-zinc-300'">
-                                {{ bulanKe(sisaBulanEmas) }}
+                                {{ sisaBulanEmas === null ? 'Belum ada data' : bulanKe(sisaBulanEmas) }}
                             </p>
                         </div>
                     </div>

@@ -24,12 +24,13 @@ const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
 const isCicilanEstimasi = computed(() => !props.aktifKontrak)
 const cicilanBulanan    = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : (props.lastCicilan ?? CICILAN))
+const bepTarget      = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
 const hargaSekarang  = computed(() => props.lastHargaEmas)
 const bepGap         = computed(() => hargaSekarang.value
-    ? Math.max(0, Math.round((BEP - hargaSekarang.value) / BEP * 1000) / 10)
+    ? Math.max(0, Math.round((bepTarget.value - hargaSekarang.value) / bepTarget.value * 1000) / 10)
     : null)
 
-const alokasi = hitungAlokasiBulanan()
+const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
 </script>
 
 <template>
@@ -71,8 +72,8 @@ const alokasi = hitungAlokasiBulanan()
                 </CardHeader>
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Target :size="12" class="text-yellow-500 dark:text-yellow-400"/> BEP cicilan</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ fmt(BEP) }}/gram</span>
+                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Target :size="12" class="text-yellow-500 dark:text-yellow-400"/> BEP cicilan{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ fmt(bepTarget) }}/gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-zinc-400"/> Harga sekarang</span>

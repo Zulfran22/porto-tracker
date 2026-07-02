@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
 import KontrakFormFields from '@/Components/KontrakFormFields.vue'
 import { FileText, Trash2, Loader2, Eye, X, Paperclip, Pencil } from 'lucide-vue-next'
-import { CICILAN, CICILAN_GRAM } from '@/Composables/useFinanceConstants'
+import { CICILAN, CICILAN_GRAM, DEFAULT_TENOR_BULAN, DEFAULT_BIAYA_ADMIN } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     kontrak: { type: Array, default: () => [] },
@@ -20,11 +20,11 @@ const form = useForm({
     cabang:         '',
     no_rekening:    '',
     tanggal_mulai:  todayStr,
-    tenor_bulan:    12,
+    tenor_bulan:    DEFAULT_TENOR_BULAN,
     total_gram:     CICILAN_GRAM,
     angsuran_bulan: CICILAN,
     sewa_modal:     '',
-    biaya_admin:    25000,
+    biaya_admin:    DEFAULT_BIAYA_ADMIN,
     catatan:        '',
     file_kontrak:   null,
 })
@@ -52,8 +52,8 @@ const tutupDetail = () => detailTarget.value = null
 const editId = ref(null)
 const editFileInputKey = ref(0)
 const editForm = useForm({
-    nomor_kontrak: '', cabang: '', no_rekening: '', tanggal_mulai: '', tenor_bulan: 12,
-    total_gram: 0, angsuran_bulan: 0, sewa_modal: '', biaya_admin: 25000,
+    nomor_kontrak: '', cabang: '', no_rekening: '', tanggal_mulai: '', tenor_bulan: DEFAULT_TENOR_BULAN,
+    total_gram: 0, angsuran_bulan: 0, sewa_modal: '', biaya_admin: DEFAULT_BIAYA_ADMIN,
     status: 'aktif', catatan: '', file_kontrak: null,
 })
 

@@ -7,9 +7,11 @@ export const DUE_DATE_DAY = 4
 export const CICILAN_TENOR_END = '2027-06-04' // jatuh tempo kontrak Mulia Tabungan Emas
 export const DEFAULT_BUDGET = 3000000
 export const DEFAULT_ALLOC = { darurat: 25, emas: 40, reksa: 20, sbn: 15 }
+export const DEFAULT_TENOR_BULAN = 12
+export const DEFAULT_BIAYA_ADMIN = 25000
 
-export function hitungAlokasiBulanan(budget = DEFAULT_BUDGET, alloc = DEFAULT_ALLOC) {
-    const sisa = Math.max(0, budget - CICILAN)
+export function hitungAlokasiBulanan(budget = DEFAULT_BUDGET, cicilan = CICILAN, alloc = DEFAULT_ALLOC) {
+    const sisa = Math.max(0, budget - cicilan)
     return {
         sisa,
         darurat: Math.round(sisa * alloc.darurat / 100),

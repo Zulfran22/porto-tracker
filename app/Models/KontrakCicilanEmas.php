@@ -36,6 +36,8 @@ class KontrakCicilanEmas extends Model
         'biaya_admin'     => 'integer',
     ];
 
+    protected $appends = ['bep_per_gram'];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -47,5 +49,17 @@ class KontrakCicilanEmas extends Model
             ->where('status', 'aktif')
             ->orderBy('tanggal_mulai', 'desc')
             ->first();
+    }
+
+    // Harga breakeven per gram: total biaya kontrak (angsuran selama tenor + sewa modal + biaya admin) dibagi total gram
+    public function getBepPerGramAttribute(): int
+    {
+        if ($this->total_gram <= 0) {
+            return 0;
+        }
+
+        $totalBiaya = ($this->angsuran_bulan * $this->tenor_bulan) + ($this->sewa_modal ?? 0) + ($this->biaya_admin ?? 0);
+
+        return (int) round($totalBiaya / $this->total_gram);
     }
 }
