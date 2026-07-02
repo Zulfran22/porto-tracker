@@ -18,11 +18,18 @@ import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET } from '@/Comp
 
 const props = defineProps({
     portofolios: Array,
+    aktifKontrak: { type: Object, default: null },
     cashflow: { type: Object, default: () => ({ income: 0, expense: 0, net: 0 }) },
 })
 
 const last = computed(() => props.portofolios?.at(-1) ?? null)
 const prev = computed(() => props.portofolios?.at(-2) ?? null)
+
+// Gram & angsuran cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke
+// konstanta statis sebagai estimasi (ditandai isCicilanEstimasi) agar tidak tampil seperti data nyata.
+const cicilanGram     = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
+const cicilanBulanan  = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN)
+const isCicilanEstimasi = computed(() => !props.aktifKontrak)
 
 const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
@@ -30,7 +37,7 @@ const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 const total = (e) => {
     if (!e) return 0
     return (Number(e.emas_gram) * Number(e.harga_emas)) +
-           (CICILAN_GRAM * Number(e.harga_emas)) +
+           (cicilanGram.value * Number(e.harga_emas)) +
            Number(e.dana_darurat) +
            Number(e.reksa_dana) +
            Number(e.sbn)
@@ -54,7 +61,7 @@ const pRD    = ref(20)
 const pSB    = ref(15)
 const tahun  = ref(5)
 
-const sisa     = computed(() => Math.max(0, budget.value - CICILAN))
+const sisa     = computed(() => Math.max(0, budget.value - cicilanBulanan.value))
 const mDD      = computed(() => Math.round(sisa.value * pDD.value / 100))
 const mEM      = computed(() => Math.round(sisa.value * pEM.value / 100))
 const mRD      = computed(() => Math.round(sisa.value * pRD.value / 100))
@@ -119,7 +126,7 @@ const exportPortofolio = () => {
         <AlertCircle :size="22" class="text-red-600 dark:text-red-400 shrink-0 mt-0.5"/>
         <div>
             <p class="text-sm font-semibold text-red-600 dark:text-red-400">Telat bayar cicilan!</p>
-            <p class="text-xs text-red-500 dark:text-red-300/70 mt-0.5">Segera bayar <strong>{{ fmt(CICILAN) }}</strong> — hindari denda!</p>
+            <p class="text-xs text-red-500 dark:text-red-300/70 mt-0.5">Segera bayar <strong>{{ fmt(cicilanBulanan) }}</strong> — hindari denda!</p>
         </div>
     </CardContent>
 </Card>
@@ -128,7 +135,7 @@ const exportPortofolio = () => {
         <AlertTriangle :size="22" class="text-orange-600 dark:text-orange-400 shrink-0 mt-0.5"/>
         <div>
             <p class="text-sm font-semibold text-orange-600 dark:text-orange-400">HARI INI jatuh tempo!</p>
-            <p class="text-xs text-orange-500 dark:text-orange-300/70 mt-0.5">Bayar <strong>{{ fmt(CICILAN) }}</strong> sekarang!</p>
+            <p class="text-xs text-orange-500 dark:text-orange-300/70 mt-0.5">Bayar <strong>{{ fmt(cicilanBulanan) }}</strong> sekarang!</p>
         </div>
     </CardContent>
 </Card>
@@ -137,7 +144,7 @@ const exportPortofolio = () => {
         <Bell :size="22" class="text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5"/>
         <div>
             <p class="text-sm font-semibold text-yellow-700 dark:text-yellow-400">Reminder cicilan emas</p>
-            <p class="text-xs text-yellow-600 dark:text-yellow-300/70 mt-0.5">Tanggal 04 — <strong>{{ daysUntil04 }} hari lagi</strong>. Siapkan {{ fmt(CICILAN) }}</p>
+            <p class="text-xs text-yellow-600 dark:text-yellow-300/70 mt-0.5">Tanggal 04 — <strong>{{ daysUntil04 }} hari lagi</strong>. Siapkan {{ fmt(cicilanBulanan) }}</p>
         </div>
     </CardContent>
 </Card>
@@ -246,8 +253,8 @@ const exportPortofolio = () => {
                     <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                         <CardContent class="p-3">
                             <p class="text-xs text-zinc-500 mb-1">Total emas</p>
-                            <p class="text-lg font-semibold text-yellow-500 dark:text-yellow-400">{{ (Number(last.emas_gram) + 5).toFixed(2) }}g</p>
-                            <p class="text-xs text-zinc-400 mt-0.5">5g cicilan + {{ last.emas_gram }}g tunai</p>
+                            <p class="text-lg font-semibold text-yellow-500 dark:text-yellow-400">{{ (Number(last.emas_gram) + cicilanGram).toFixed(2) }}g</p>
+                            <p class="text-xs text-zinc-400 mt-0.5">{{ cicilanGram }}g cicilan{{ isCicilanEstimasi ? ' (estimasi)' : '' }} + {{ last.emas_gram }}g tunai</p>
                         </CardContent>
                     </Card>
                     <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -303,8 +310,8 @@ const exportPortofolio = () => {
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-2.5">
     <div class="flex justify-between text-sm items-center">
-        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="13" class="text-yellow-600"/>Cicilan 5 gram</span>
-        <span class="text-yellow-600 font-medium">{{ fmt(5 * last.harga_emas) }}</span>
+        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="13" class="text-yellow-600"/>Cicilan {{ cicilanGram }} gram{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</span>
+        <span class="text-yellow-600 font-medium">{{ fmt(cicilanGram * last.harga_emas) }}</span>
     </div>
     <div class="flex justify-between text-sm items-center">
         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="13" class="text-yellow-500 dark:text-yellow-400"/>Emas tunai {{ last.emas_gram }}g</span>

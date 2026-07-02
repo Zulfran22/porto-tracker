@@ -1,6 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3'
-import { LayoutDashboard, PlusCircle, BarChart2, Info, Target, Wallet } from 'lucide-vue-next'
+import { LayoutDashboard, PlusCircle, BarChart2, Info, Target, Wallet, FileText } from 'lucide-vue-next'
 
 const page = usePage()
 
@@ -9,6 +9,7 @@ const navItems = [
     { name: 'Catat',     icon: PlusCircle,      route: 'portofolio.create', match: '/catat' },
     { name: 'Grafik',    icon: BarChart2,        route: 'grafik',            match: '/grafik' },
     { name: 'Keuangan',  icon: Wallet,           route: 'keuangan.index',    match: '/keuangan' },
+    { name: 'Kontrak',   icon: FileText,         route: 'kontrak-cicilan.index', match: '/kontrak-cicilan' },
     { name: 'Info',      icon: Info,             route: 'info',              match: '/info' },
     { name: 'Target',    icon: Target,           route: 'target',            match: '/target' },
 ]

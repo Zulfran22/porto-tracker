@@ -9,7 +9,10 @@ import { useTheme } from '@/Composables/useTheme'
 import { CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 Chart.register(...registerables)
 
-const props = defineProps({ portofolios: Array })
+const props = defineProps({
+    portofolios: Array,
+    aktifKontrak: { type: Object, default: null },
+})
 const { isDark } = useTheme()
 
 const chartTotal  = ref(null)
@@ -20,8 +23,13 @@ const chartInvest = ref(null)
 const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
+// Gram cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
+// statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.
+const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
+const isCicilanEstimasi = computed(() => !props.aktifKontrak)
+
 const total = (e) =>
-    (Number(e.emas_gram) * Number(e.harga_emas)) + (CICILAN_GRAM * Number(e.harga_emas)) +
+    (Number(e.emas_gram) * Number(e.harga_emas)) + (cicilanGram.value * Number(e.harga_emas)) +
     Number(e.dana_darurat) + Number(e.reksa_dana) + Number(e.sbn)
 
 const last       = computed(() => props.portofolios.at(-1) ?? null)
@@ -32,7 +40,7 @@ const growthPct  = computed(() => {
     if (!first.value || totalFirst.value === 0) return 0
     return ((totalLast.value - totalFirst.value) / totalFirst.value * 100).toFixed(1)
 })
-const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + CICILAN_GRAM).toFixed(2) : 0)
+const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + cicilanGram.value).toFixed(2) : 0)
 const hargaSekarang  = computed(() => last.value ? Number(last.value.harga_emas) : 0)
 const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / BEP * 100)))
 const bepSisa        = computed(() => Math.max(0, BEP - hargaSekarang.value))
@@ -173,7 +181,7 @@ onMounted(() => {
                         <CardContent class="p-3">
                             <p class="text-xs text-zinc-500 mb-1">Total emas</p>
                             <p class="text-lg font-bold text-yellow-500 dark:text-yellow-400">{{ totalEmasGram }}g</p>
-                            <p class="text-xs text-zinc-400 mt-1">5g cicilan + {{ last?.emas_gram }}g tunai</p>
+                            <p class="text-xs text-zinc-400 mt-1">{{ cicilanGram }}g cicilan{{ isCicilanEstimasi ? ' (estimasi)' : '' }} + {{ last?.emas_gram }}g tunai</p>
                         </CardContent>
                     </Card>
                     <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">

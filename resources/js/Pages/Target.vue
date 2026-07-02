@@ -15,6 +15,7 @@ import { CICILAN_GRAM, hitungAlokasiBulanan } from '@/Composables/useFinanceCons
 const props = defineProps({
     portofolios: Array,
     target: Object,
+    aktifKontrak: { type: Object, default: null },
 })
 
 const last = computed(() => props.portofolios?.at(-1) ?? null)
@@ -30,10 +31,16 @@ const form = useForm({
 
 const saveTarget = () => form.put(route('target.update'))
 
-const HARGA_EMAS   = computed(() => last.value ? Number(last.value.harga_emas) : 2545000)
+// Gram cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
+// statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.
+const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
+const isCicilanEstimasi = computed(() => !props.aktifKontrak)
+
+// Tanpa data portofolio, harga emas belum diketahui — jangan menebak angka, tampilkan "belum ada data".
+const HARGA_EMAS   = computed(() => last.value ? Number(last.value.harga_emas) : null)
 const alokasi = hitungAlokasiBulanan()
 
-const emasSekarang    = computed(() => last.value ? Number(last.value.emas_gram) + CICILAN_GRAM : CICILAN_GRAM)
+const emasSekarang    = computed(() => last.value ? Number(last.value.emas_gram) + cicilanGram.value : cicilanGram.value)
 const daruratSekarang = computed(() => last.value ? Number(last.value.dana_darurat) : 0)
 const reksaSekarang   = computed(() => last.value ? Number(last.value.reksa_dana) : 0)
 
@@ -56,8 +63,8 @@ function bulanKe(n) {
     return d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
 }
 
-const nilaiTargetEmas = computed(() => form.target_emas * HARGA_EMAS.value)
-const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
+const nilaiTargetEmas = computed(() => HARGA_EMAS.value !== null ? form.target_emas * HARGA_EMAS.value : null)
+const nilaiEmasSkrg   = computed(() => HARGA_EMAS.value !== null ? emasSekarang.value * HARGA_EMAS.value : null)
 </script>
 
 <template>
@@ -96,7 +103,7 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                                 class="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center justify-center text-base transition-colors">+</button>
                         </div>
                     </div>
-                    <p class="text-xs text-zinc-500 mt-1">Saat ini {{ emasSekarang.toFixed(2) }} gram (termasuk 5g cicilan)</p>
+                    <p class="text-xs text-zinc-500 mt-1">Saat ini {{ emasSekarang.toFixed(2) }} gram (termasuk {{ cicilanGram }}g cicilan{{ isCicilanEstimasi ? ' — estimasi' : '' }})</p>
                 </CardHeader>
                 <CardContent class="px-4 pb-4">
                     <div class="flex justify-between text-xs text-zinc-500 mb-1.5">
@@ -116,7 +123,7 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Nilai target</p>
-                            <p class="text-sm font-semibold text-yellow-500 dark:text-yellow-400">{{ fmtJt(nilaiTargetEmas) }}</p>
+                            <p class="text-sm font-semibold text-yellow-500 dark:text-yellow-400">{{ nilaiTargetEmas !== null ? fmtJt(nilaiTargetEmas) : 'Belum ada data' }}</p>
                         </div>
                         <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-2.5">
                             <p class="text-xs text-zinc-500 mb-1">Est. tercapai</p>
@@ -229,7 +236,7 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                         <Coins :size="12"/> Ringkasan nilai saat ini
                     </CardTitle>
                 </CardHeader>
-                <CardContent class="px-4 pb-4 space-y-2.5">
+                <CardContent v-if="last" class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                             <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Nilai emas ({{ emasSekarang.toFixed(2) }}g)
@@ -253,6 +260,9 @@ const nilaiEmasSkrg   = computed(() => emasSekarang.value * HARGA_EMAS.value)
                         <span class="text-zinc-600 dark:text-zinc-300 font-semibold">Total aset</span>
                         <span class="text-zinc-900 dark:text-white font-bold text-base">{{ fmtJt(nilaiEmasSkrg + daruratSekarang + reksaSekarang) }}</span>
                     </div>
+                </CardContent>
+                <CardContent v-else class="px-4 pb-4">
+                    <p class="text-sm text-zinc-400 text-center py-3">Belum ada data. Isi lewat halaman Catat.</p>
                 </CardContent>
             </Card>
 

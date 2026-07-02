@@ -14,11 +14,16 @@ import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, hitungAlokasi
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
     lastCicilan:   { type: Number, default: null },
+    aktifKontrak:  { type: Object, default: null },
 })
 
 const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 
-const cicilanBulanan = computed(() => props.lastCicilan ?? CICILAN)
+// Kontrak aktif jadi sumber utama; kalau tidak ada, jatuh ke entri portofolio terakhir,
+// baru ke konstanta statis sebagai estimasi paling akhir.
+const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
+const isCicilanEstimasi = computed(() => !props.aktifKontrak)
+const cicilanBulanan    = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : (props.lastCicilan ?? CICILAN))
 const hargaSekarang  = computed(() => props.lastHargaEmas)
 const bepGap         = computed(() => hargaSekarang.value
     ? Math.max(0, Math.round((BEP - hargaSekarang.value) / BEP * 1000) / 10)
@@ -43,7 +48,7 @@ const alokasi = hitungAlokasiBulanan()
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas cicilan</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ CICILAN_GRAM.toFixed(4) }} gram</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ cicilanGram.toFixed(4) }} gram{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Angsuran/bulan</span>

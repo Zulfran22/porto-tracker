@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Target;
 use App\Models\Portofolio;
+use App\Models\KontrakCicilanEmas;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -25,8 +26,9 @@ class TargetController extends Controller
         );
 
         return Inertia::render('Target', [
-            'portofolios' => $portofolios,
-            'target'      => $target,
+            'portofolios'  => $portofolios,
+            'target'       => $target,
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
     }
 

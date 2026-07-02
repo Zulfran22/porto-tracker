@@ -6,6 +6,7 @@ use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\CustomCategoryController;
+use App\Http\Controllers\KontrakCicilanController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
@@ -24,8 +25,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/catat', function () {
         $last = \App\Models\Portofolio::where('user_id', auth()->id())
             ->orderBy('bulan', 'desc')->first();
+
+        $aktifKontrak = \App\Models\KontrakCicilanEmas::where('user_id', auth()->id())
+            ->where('status', 'aktif')
+            ->orderBy('tanggal_mulai', 'desc')
+            ->first();
+
         return Inertia::render('Catat', [
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'aktifKontrak'  => $aktifKontrak,
         ]);
     })->name('portofolio.create');
 
@@ -35,10 +43,19 @@ Route::middleware('auth')->group(function () {
     Route::put('/portofolio/{portofolio}', [PortofolioController::class, 'update'])->name('portofolio.update');
     Route::delete('/portofolio/{portofolio}', [PortofolioController::class, 'destroy'])->name('portofolio.destroy');
 
+    // Kontrak cicilan emas
+    Route::get('/kontrak-cicilan', [KontrakCicilanController::class, 'index'])->name('kontrak-cicilan.index');
+    Route::post('/kontrak-cicilan', [KontrakCicilanController::class, 'store'])->name('kontrak-cicilan.store');
+    Route::put('/kontrak-cicilan/{kontrak}', [KontrakCicilanController::class, 'update'])->name('kontrak-cicilan.update');
+    Route::delete('/kontrak-cicilan/{kontrak}', [KontrakCicilanController::class, 'destroy'])->name('kontrak-cicilan.destroy');
+
     // Grafik
     Route::get('/grafik', function () {
         $data = \App\Models\Portofolio::where('user_id', auth()->id())->orderBy('bulan')->get();
-        return Inertia::render('Grafik', ['portofolios' => $data]);
+        return Inertia::render('Grafik', [
+            'portofolios'  => $data,
+            'aktifKontrak' => \App\Models\KontrakCicilanEmas::aktifUntuk(auth()->id()),
+        ]);
     })->name('grafik');
 
     // Info
@@ -48,6 +65,7 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Info', [
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
             'lastCicilan'   => $last ? (int) $last->cicilan : null,
+            'aktifKontrak'  => \App\Models\KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
     })->name('info');
 

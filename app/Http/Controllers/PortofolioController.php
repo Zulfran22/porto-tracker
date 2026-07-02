@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Portofolio;
 use App\Models\Transaction;
+use App\Models\KontrakCicilanEmas;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -23,6 +24,7 @@ class PortofolioController extends Controller
 
         return Inertia::render('Dashboard', [
             'portofolios' => $data,
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
             'cashflow'    => [
                 'income'  => $cashflow->where('type', 'income')->sum('jumlah'),
                 'expense' => $cashflow->where('type', 'expense')->sum('jumlah'),

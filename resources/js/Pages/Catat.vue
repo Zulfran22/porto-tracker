@@ -9,11 +9,17 @@ import {
     Lock, Coins, Shield, TrendingUp, Landmark,
     StickyNote, Globe, Calendar, Loader2, AlertTriangle
 } from 'lucide-vue-next'
-import { CICILAN } from '@/Composables/useFinanceConstants'
+import { CICILAN, DUE_DATE_DAY, CICILAN_TENOR_END } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
+    aktifKontrak:  { type: Object, default: null },
 })
+
+// Kontrak aktif jadi sumber default cicilan bila ada, jatuh ke konstanta statis bila belum ada kontrak tercatat.
+const cicilanDefault = props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN
+const tenorEndDate   = props.aktifKontrak ? props.aktifKontrak.tanggal_selesai : CICILAN_TENOR_END
+const tenorEndLabel  = new Date(tenorEndDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
 
 const now = new Date()
 const bulanDefault = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
@@ -22,7 +28,7 @@ const form = useForm({
     bulan:        bulanDefault,
     emas_gram:    '',
     harga_emas:   '',
-    cicilan:      CICILAN,
+    cicilan:      cicilanDefault,
     dana_darurat: 0,
     reksa_dana:   0,
     sbn:          0,
@@ -96,6 +102,10 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                 <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                             </label>
                             <input type="number" v-model="form.cicilan" :class="inputClass"/>
+                            <p class="text-xs text-zinc-400 mt-1">
+                                Jatuh tempo tgl {{ DUE_DATE_DAY }} setiap bulan · kontrak lunas {{ tenorEndLabel }}
+                                <span v-if="aktifKontrak"> · No. {{ aktifKontrak.nomor_kontrak }}</span>
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
