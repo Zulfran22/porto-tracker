@@ -125,13 +125,16 @@ const submitCat = () => catForm.post(route('kategori.store'), {
 const hapusCat = (id) => router.delete(route('kategori.destroy', id), { preserveScroll: true })
 
 // All categories (default + custom) for the form
+// De-dupe: kategori kustom bisa dibuat dengan nama yang kebetulan sama dengan kategori
+// bawaan (tidak divalidasi di backend) — tanpa Set ini, nama kembar akan dobel-hitung
+// di budgetProgress (satu dari KATEGORI_EXPENSE, satu lagi dari customCats).
 const allExpenseKategori = computed(() => {
     const custom = props.customCats.filter(c => c.type === 'expense').map(c => c.name)
-    return [...KATEGORI_EXPENSE.map(k => k.name), ...custom]
+    return [...new Set([...KATEGORI_EXPENSE.map(k => k.name), ...custom])]
 })
 const allIncomeKategori = computed(() => {
     const custom = props.customCats.filter(c => c.type === 'income').map(c => c.name)
-    return [...KATEGORI_INCOME.map(k => k.name), ...custom]
+    return [...new Set([...KATEGORI_INCOME.map(k => k.name), ...custom])]
 })
 const currentKategoriList = computed(() =>
     activeType.value === 'income' ? allIncomeKategori.value : allExpenseKategori.value
@@ -190,13 +193,18 @@ const expenseByKategori = computed(() => {
     return map
 })
 
+// Pakai allExpenseKategori (bawaan + kustom) agar pengeluaran kategori kustom
+// ikut terhitung ke Total bulan ini / Sisa budget, bukan cuma 6 kategori bawaan.
 const budgetProgress = computed(() =>
-    KATEGORI_EXPENSE.map(k => {
-        const limit = budgetMap.value[k.name] ?? 0
-        const spent = expenseByKategori.value[k.name] ?? 0
+    allExpenseKategori.value.map(name => {
+        const info   = kategoriInfo('expense', name)
+        const limit  = budgetMap.value[name] ?? 0
+        const spent  = expenseByKategori.value[name] ?? 0
         const percent = limit > 0 ? Math.round(spent / limit * 100) : 0
         return {
-            ...k,
+            name,
+            icon: info.icon,
+            color: info.color,
             limit,
             spent,
             remaining: Math.max(0, limit - spent),
@@ -522,7 +530,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                 <CardContent class="px-4 pb-4 space-y-3">
                     <form @submit.prevent="submitBudget" class="grid grid-cols-[1fr_1fr_auto] gap-2">
                         <select v-model="budgetForm.kategori" :class="inputClass">
-                            <option v-for="k in KATEGORI_EXPENSE" :key="k.name" :value="k.name">{{ k.name }}</option>
+                            <option v-for="k in allExpenseKategori" :key="k" :value="k">{{ k }}</option>
                         </select>
                         <input type="number" v-model="budgetForm.limit_jumlah" min="0" placeholder="Limit Rp" :class="inputClass"/>
                         <button type="submit" :disabled="budgetForm.processing"
@@ -557,8 +565,8 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                             </button>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-medium"
-                                    :class="b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.percent >= 80 ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-600 dark:text-zinc-300'">
-                                    {{ b.percent }}% · {{ fmt(b.spent) }}
+                                    :class="b.limit === 0 ? 'text-zinc-400 dark:text-zinc-500' : b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.percent >= 80 ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-600 dark:text-zinc-300'">
+                                    {{ b.limit === 0 ? 'Tanpa limit' : b.percent + '%' }} · {{ fmt(b.spent) }}
                                 </span>
                                 <button v-if="b.limit > 0" type="button" @click="hapusBudget(b.name)"
                                     class="p-1 rounded text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
@@ -568,14 +576,14 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                         </div>
                         <div class="h-1.5 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
                             <div class="h-full rounded-full transition-all"
-                                :style="{ width: b.cappedPercent + '%' }"
+                                :style="{ width: (b.limit === 0 ? 0 : b.cappedPercent) + '%' }"
                                 :class="b.percent > 100 ? 'bg-red-500' : b.percent >= 80 ? 'bg-orange-400' : 'bg-green-500'">
                             </div>
                         </div>
                         <div class="flex justify-between text-xs text-zinc-500">
-                            <span>Limit {{ fmt(b.limit) }}</span>
+                            <span>Limit {{ b.limit === 0 ? '—' : fmt(b.limit) }}</span>
                             <span :class="b.percent > 100 ? 'text-red-500 dark:text-red-400 font-medium' : ''">
-                                {{ b.percent > 100 ? '⚠ Lewat ' + fmt(b.spent - b.limit) : 'Sisa ' + fmt(b.remaining) }}
+                                {{ b.limit === 0 ? 'Belum ada limit' : (b.percent > 100 ? '⚠ Lewat ' + fmt(b.spent - b.limit) : 'Sisa ' + fmt(b.remaining)) }}
                             </span>
                         </div>
                     </div>

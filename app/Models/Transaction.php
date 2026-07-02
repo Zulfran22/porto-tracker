@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Transaction extends Model
 {
     protected $fillable = [
-        'user_id', 'tanggal', 'type', 'kategori', 'jumlah', 'catatan',
+        'user_id', 'recurring_transaction_id', 'tanggal', 'type', 'kategori', 'jumlah', 'catatan',
     ];
 
     protected $casts = [

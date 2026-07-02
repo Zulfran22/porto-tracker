@@ -42,7 +42,7 @@ class RecurringTransactionController extends Controller
         return back()->with('success', 'Dihapus!');
     }
 
-    // Terapkan semua recurring yang aktif ke hari ini
+    // Terapkan semua recurring yang aktif ke hari ini (idempoten — lewati yang sudah diterapkan hari ini)
     public function apply(Request $request)
     {
         $today = now()->toDateString();
@@ -51,19 +51,36 @@ class RecurringTransactionController extends Controller
             ->where('aktif', true)
             ->get();
 
+        $sudahDiterapkan = Transaction::where('user_id', auth()->id())
+            ->where('tanggal', $today)
+            ->whereNotNull('recurring_transaction_id')
+            ->pluck('recurring_transaction_id')
+            ->all();
+
         $count = 0;
         foreach ($recurrings as $r) {
+            if (in_array($r->id, $sudahDiterapkan)) {
+                continue;
+            }
+
             Transaction::create([
-                'user_id'  => auth()->id(),
-                'tanggal'  => $today,
-                'type'     => $r->type,
-                'kategori' => $r->kategori,
-                'jumlah'   => $r->jumlah,
-                'catatan'  => $r->catatan ?? 'Transaksi berulang',
+                'user_id'                  => auth()->id(),
+                'recurring_transaction_id' => $r->id,
+                'tanggal'                  => $today,
+                'type'                     => $r->type,
+                'kategori'                 => $r->kategori,
+                'jumlah'                   => $r->jumlah,
+                'catatan'                  => $r->catatan ?? 'Transaksi berulang',
             ]);
             $count++;
         }
 
-        return back()->with('success', "{$count} transaksi berulang diterapkan!");
+        $dilewati = $recurrings->count() - $count;
+        $pesan = "{$count} transaksi berulang diterapkan!";
+        if ($dilewati > 0) {
+            $pesan .= " ({$dilewati} sudah diterapkan hari ini, dilewati)";
+        }
+
+        return back()->with('success', $pesan);
     }
 }

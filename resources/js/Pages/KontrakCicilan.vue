@@ -95,7 +95,8 @@ const totalPembayaran = (k) => Number(k.angsuran_bulan) * Number(k.tenor_bulan)
 
 const sisaBulan = (k) => {
     const selesai = new Date(k.tanggal_selesai)
-    const diff = (selesai.getFullYear() - now.getFullYear()) * 12 + (selesai.getMonth() - now.getMonth())
+    let diff = (selesai.getFullYear() - now.getFullYear()) * 12 + (selesai.getMonth() - now.getMonth())
+    if (selesai.getDate() < now.getDate()) diff -= 1
     return Math.max(0, diff)
 }
 
