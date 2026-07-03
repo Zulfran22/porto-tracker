@@ -1,0 +1,1 @@
+export const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:border-yellow-500 focus:ring-0 outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600"

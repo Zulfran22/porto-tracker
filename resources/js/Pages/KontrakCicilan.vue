@@ -7,6 +7,8 @@ import { Badge } from '@/Components/ui/badge'
 import KontrakFormFields from '@/Components/KontrakFormFields.vue'
 import { FileText, Trash2, Loader2, Eye, X, Paperclip, Pencil } from 'lucide-vue-next'
 import { CICILAN, CICILAN_GRAM, DEFAULT_TENOR_BULAN, DEFAULT_BIAYA_ADMIN } from '@/Composables/useFinanceConstants'
+import { fmt } from '@/Composables/useCurrency'
+import { useEscapeKey } from '@/Composables/useEscapeKey'
 
 const props = defineProps({
     kontrak: { type: Array, default: () => [] },
@@ -47,6 +49,7 @@ const hapus = (id) => {
 const detailTarget = ref(null)
 const lihatDetail = (k) => detailTarget.value = k
 const tutupDetail = () => detailTarget.value = null
+useEscapeKey(detailTarget, tutupDetail)
 
 // EDIT
 const editId = ref(null)
@@ -79,6 +82,7 @@ const tutupEdit = () => {
     editForm.reset()
     editFileInputKey.value++
 }
+useEscapeKey(editId, tutupEdit)
 
 const submitEdit = () => {
     // PUT + file (multipart) tidak konsisten diparse Laravel — kirim sebagai POST dengan spoof _method sesuai rekomendasi Inertia.
@@ -86,8 +90,6 @@ const submitEdit = () => {
         onSuccess: () => tutupEdit(),
     })
 }
-
-const rupiah = (n) => 'Rp' + Number(n ?? 0).toLocaleString('id-ID')
 
 const tanggalLabel = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'
 
@@ -148,20 +150,20 @@ const statusBadge = (status) => ({
                             </div>
                             <div class="flex items-center gap-2">
                                 <Badge :class="statusBadge(k.status) + ' border text-xs'">{{ k.status }}</Badge>
-                                <button @click="bukaEdit(k)" class="text-zinc-400 hover:text-yellow-500 transition-colors">
+                                <button @click="bukaEdit(k)" :aria-label="`Edit kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-yellow-500 transition-colors">
                                     <Pencil :size="14"/>
                                 </button>
-                                <button @click="hapus(k.id)" class="text-zinc-400 hover:text-red-500 transition-colors">
+                                <button @click="hapus(k.id)" :aria-label="`Hapus kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-red-500 transition-colors">
                                     <Trash2 :size="14"/>
                                 </button>
                             </div>
                         </div>
                         <div class="flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
                             <span>{{ k.tanggal_mulai }} s/d {{ k.tanggal_selesai }}</span>
-                            <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ rupiah(k.angsuran_bulan) }}/bulan</span>
+                            <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ fmt(k.angsuran_bulan) }}/bulan</span>
                         </div>
                         <p v-if="k.catatan" class="text-xs text-zinc-400 italic">{{ k.catatan }}</p>
-                        <a v-if="k.file_kontrak" :href="`/storage/${k.file_kontrak}`" target="_blank"
+                        <a v-if="k.file_kontrak" :href="route('kontrak-cicilan.file', k.id)" target="_blank"
                             class="inline-flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 hover:underline">
                             <Paperclip :size="11"/> Lihat file kontrak
                         </a>
@@ -179,15 +181,15 @@ const statusBadge = (status) => ({
     <!-- DETAIL MODAL -->
     <Teleport to="body">
         <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
-            <div v-if="detailTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="tutupDetail">
+            <div v-if="detailTarget" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="tutupDetail">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
                 <div class="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 max-h-[85vh] overflow-y-auto">
                     <div class="flex items-start justify-between gap-3 mb-4">
                         <div>
-                            <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">Detail kontrak</h3>
+                            <h3 id="detail-modal-title" class="font-semibold text-zinc-900 dark:text-white text-sm">Detail kontrak</h3>
                             <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{{ detailTarget.nomor_kontrak }}</p>
                         </div>
-                        <button @click="tutupDetail" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                        <button @click="tutupDetail" aria-label="Tutup" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                             <X :size="16"/>
                         </button>
                     </div>
@@ -225,25 +227,25 @@ const statusBadge = (status) => ({
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500 dark:text-zinc-400">Angsuran/bulan</span>
-                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ rupiah(detailTarget.angsuran_bulan) }}</span>
+                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ fmt(detailTarget.angsuran_bulan) }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500 dark:text-zinc-400">Sewa modal</span>
-                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ rupiah(detailTarget.sewa_modal) }}</span>
+                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ fmt(detailTarget.sewa_modal) }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500 dark:text-zinc-400">Biaya admin</span>
-                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ rupiah(detailTarget.biaya_admin) }}</span>
+                            <span class="text-zinc-800 dark:text-zinc-200 font-medium">{{ fmt(detailTarget.biaya_admin) }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500 dark:text-zinc-400 font-medium">Total seluruh angsuran</span>
-                            <span class="text-yellow-600 dark:text-yellow-400 font-semibold">{{ rupiah(totalPembayaran(detailTarget)) }}</span>
+                            <span class="text-yellow-600 dark:text-yellow-400 font-semibold">{{ fmt(totalPembayaran(detailTarget)) }}</span>
                         </div>
                         <template v-if="detailTarget.catatan">
                             <div class="border-t border-zinc-100 dark:border-zinc-800 my-2"/>
                             <p class="text-zinc-400 italic">{{ detailTarget.catatan }}</p>
                         </template>
-                        <a v-if="detailTarget.file_kontrak" :href="`/storage/${detailTarget.file_kontrak}`" target="_blank"
+                        <a v-if="detailTarget.file_kontrak" :href="route('kontrak-cicilan.file', detailTarget.id)" target="_blank"
                             class="flex items-center justify-center gap-1.5 mt-2 text-yellow-600 dark:text-yellow-400 hover:underline">
                             <Paperclip :size="12"/> Lihat file kontrak
                         </a>
@@ -261,13 +263,13 @@ const statusBadge = (status) => ({
     <!-- EDIT MODAL -->
     <Teleport to="body">
         <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
-            <div v-if="editId" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="tutupEdit">
+            <div v-if="editId" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="tutupEdit">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
                 <form @submit.prevent="submitEdit"
                     class="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6 max-h-[85vh] overflow-y-auto space-y-3">
                     <div class="flex items-start justify-between gap-3 mb-2">
-                        <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">Edit kontrak</h3>
-                        <button type="button" @click="tutupEdit" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                        <h3 id="edit-modal-title" class="font-semibold text-zinc-900 dark:text-white text-sm">Edit kontrak</h3>
+                        <button type="button" @click="tutupEdit" aria-label="Tutup" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                             <X :size="16"/>
                         </button>
                     </div>

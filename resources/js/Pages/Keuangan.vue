@@ -7,6 +7,9 @@ import { Badge } from '@/Components/ui/badge'
 import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
+import { fmt } from '@/Composables/useCurrency'
+import { inputClass } from '@/Composables/useFormStyles'
+import { useEscapeKey } from '@/Composables/useEscapeKey'
 import {
     Wallet, Calendar, Tag, StickyNote, Trash2, Loader2,
     UtensilsCrossed, Car, ShoppingBag, Film, HeartPulse, MoreHorizontal,
@@ -68,6 +71,7 @@ function switchType(type) {
 }
 
 const showQuickAdd = ref(false)
+useEscapeKey(showQuickAdd, () => { showQuickAdd.value = false })
 
 const submit = () => {
     form.post(route('keuangan.store'), {
@@ -142,8 +146,6 @@ const allIncomeKategori = computed(() => {
 const currentKategoriList = computed(() =>
     activeType.value === 'income' ? allIncomeKategori.value : allExpenseKategori.value
 )
-
-const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 
 // SUMMARY
 const bulanIni = computed(() => props.transactions.filter(t => t.tanggal.startsWith(currentMonth)))
@@ -355,8 +357,6 @@ function fmtTanggal(tgl) {
     const d = new Date(tgl + 'T00:00:00')
     return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 }
-
-const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:border-yellow-500 focus:ring-0 outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
 </script>
 
 <template>
@@ -473,10 +473,10 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                 </CardHeader>
                 <CardContent class="px-4 pb-4 space-y-3">
                     <form @submit.prevent="submitBudget" class="grid grid-cols-[1fr_1fr_auto] gap-2">
-                        <select v-model="budgetForm.kategori" :class="inputClass">
+                        <select v-model="budgetForm.kategori" aria-label="Kategori budget" :class="inputClass">
                             <option v-for="k in allExpenseKategori" :key="k" :value="k">{{ k }}</option>
                         </select>
-                        <input type="number" v-model="budgetForm.limit_jumlah" min="0" placeholder="Limit Rp" :class="inputClass"/>
+                        <input type="number" v-model="budgetForm.limit_jumlah" min="0" placeholder="Limit Rp" aria-label="Limit budget (Rp)" :class="inputClass"/>
                         <button type="submit" :disabled="budgetForm.processing"
                             class="px-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold disabled:opacity-50 flex items-center justify-center">
                             <Loader2 v-if="budgetForm.processing" :size="15" class="animate-spin"/>
@@ -512,7 +512,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                     :class="b.limit === 0 ? 'text-zinc-400 dark:text-zinc-500' : b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.percent >= 80 ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-600 dark:text-zinc-300'">
                                     {{ b.limit === 0 ? 'Tanpa limit' : b.percent + '%' }} · {{ fmt(b.spent) }}
                                 </span>
-                                <button v-if="b.limit > 0" type="button" @click="hapusBudget(b.name)"
+                                <button v-if="b.limit > 0" type="button" @click="hapusBudget(b.name)" :aria-label="`Hapus budget ${b.name}`"
                                     class="p-1 rounded text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                                     <X :size="11"/>
                                 </button>
@@ -597,7 +597,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                     :class="item.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'">
                                     {{ item.type === 'income' ? '+' : '-' }}{{ fmt(item.jumlah) }}
                                 </span>
-                                <button @click="hapus(item.id)"
+                                <button @click="hapus(item.id)" aria-label="Hapus transaksi"
                                     class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
                                     <Trash2 :size="14"/>
                                 </button>
@@ -634,29 +634,29 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Transaksi Berulang</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Tipe</label>
-                            <select v-model="recurringForm.type"
+                            <label for="recurring-type" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Tipe</label>
+                            <select id="recurring-type" v-model="recurringForm.type"
                                 class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
                                 <option value="expense">Pengeluaran</option>
                                 <option value="income">Pemasukan</option>
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Kategori</label>
-                            <select v-model="recurringForm.kategori"
+                            <label for="recurring-kategori" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Kategori</label>
+                            <select id="recurring-kategori" v-model="recurringForm.kategori"
                                 class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
                                 <option v-for="k in (recurringForm.type === 'income' ? allIncomeKategori : allExpenseKategori)" :key="k" :value="k">{{ k }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Jumlah (Rp)</label>
-                            <input v-model="recurringForm.jumlah" type="number" placeholder="0" min="1"
+                            <label for="recurring-jumlah" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Jumlah (Rp)</label>
+                            <input id="recurring-jumlah" v-model="recurringForm.jumlah" type="number" placeholder="0" min="1"
                                 class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
                             <p v-if="recurringForm.errors.jumlah" class="text-xs text-red-500 mt-1">{{ recurringForm.errors.jumlah }}</p>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Catatan (opsional)</label>
-                            <input v-model="recurringForm.catatan" type="text" placeholder="Contoh: Cicilan KPR"
+                            <label for="recurring-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Catatan (opsional)</label>
+                            <input id="recurring-catatan" v-model="recurringForm.catatan" type="text" placeholder="Contoh: Cicilan KPR"
                                 class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
                         </div>
                     </div>
@@ -692,10 +692,13 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                         </div>
                         <button @click="toggleRecurring(r.id)"
                             :class="r.aktif ? 'text-green-500 hover:text-green-600' : 'text-zinc-400 hover:text-zinc-500'"
-                            class="p-1 transition-colors shrink-0" :title="r.aktif ? 'Aktif — klik untuk nonaktifkan' : 'Nonaktif — klik untuk aktifkan'">
+                            class="p-1 transition-colors shrink-0"
+                            :title="r.aktif ? 'Aktif — klik untuk nonaktifkan' : 'Nonaktif — klik untuk aktifkan'"
+                            :aria-label="r.aktif ? 'Nonaktifkan transaksi berulang' : 'Aktifkan transaksi berulang'"
+                            :aria-pressed="r.aktif">
                             <component :is="r.aktif ? ToggleRight : ToggleLeft" :size="22"/>
                         </button>
-                        <button @click="hapusRecurring(r.id)"
+                        <button @click="hapusRecurring(r.id)" aria-label="Hapus transaksi berulang"
                             class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
                             <Trash2 :size="14"/>
                         </button>
@@ -723,12 +726,12 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                 <CardContent class="p-4 space-y-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Kategori Baru</p>
                     <div class="flex gap-3">
-                        <select v-model="catForm.type"
+                        <select v-model="catForm.type" aria-label="Tipe kategori"
                             class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
                             <option value="expense">Pengeluaran</option>
                             <option value="income">Pemasukan</option>
                         </select>
-                        <input v-model="catForm.name" type="text" placeholder="Nama kategori" maxlength="50"
+                        <input v-model="catForm.name" type="text" placeholder="Nama kategori" aria-label="Nama kategori" maxlength="50"
                             class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
                     </div>
                     <p v-if="catForm.errors.name" class="text-xs text-red-500">{{ catForm.errors.name }}</p>
@@ -763,7 +766,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                                      :class="i < customCats.filter(c => c.type === tipe).length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''">
                                     <Tag :size="14" :class="tipe === 'income' ? 'text-green-500' : 'text-orange-500'"/>
                                     <span class="flex-1 text-sm text-zinc-700 dark:text-zinc-200">{{ cat.name }}</span>
-                                    <button @click="hapusCat(cat.id)"
+                                    <button @click="hapusCat(cat.id)" :aria-label="`Hapus kategori ${cat.name}`"
                                         class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                                         <Trash2 :size="14"/>
                                     </button>
@@ -791,13 +794,14 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     leave-from-class="translate-y-0"
                     leave-to-class="translate-y-full"
                     appear>
-                    <div v-if="showQuickAdd" class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-x border-zinc-200 dark:border-zinc-800 px-4 pt-3 pb-6">
+                    <div v-if="showQuickAdd" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"
+                        class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-x border-zinc-200 dark:border-zinc-800 px-4 pt-3 pb-6">
                         <div class="w-10 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto mb-3"/>
                         <div class="flex items-center justify-between mb-4">
-                            <p class="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                            <p id="quick-add-title" class="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">
                                 <Wallet :size="14"/> Catat transaksi harian
                             </p>
-                            <button @click="showQuickAdd = false" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                            <button @click="showQuickAdd = false" aria-label="Tutup" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                                 <X :size="18"/>
                             </button>
                         </div>
@@ -823,34 +827,34 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                         <form @submit.prevent="submit" class="space-y-3">
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                    <label for="quick-add-tanggal" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                         <Calendar :size="12" class="text-zinc-400"/> Tanggal
                                     </label>
-                                    <input type="date" v-model="form.tanggal" :class="inputClass"/>
+                                    <input id="quick-add-tanggal" type="date" v-model="form.tanggal" :class="inputClass"/>
                                 </div>
                                 <div>
-                                    <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                    <label for="quick-add-kategori" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                         <Tag :size="12" class="text-zinc-400"/> Kategori
                                     </label>
-                                    <select v-model="form.kategori" :class="inputClass">
+                                    <select id="quick-add-kategori" v-model="form.kategori" :class="inputClass">
                                         <option v-for="k in currentKategoriList" :key="k" :value="k">{{ k }}</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="quick-add-jumlah" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Wallet :size="12" class="text-zinc-400"/> Jumlah (Rp)
                                 </label>
-                                <input type="number" v-model="form.jumlah" placeholder="mis. 25000" :class="inputClass"/>
+                                <input id="quick-add-jumlah" type="number" v-model="form.jumlah" placeholder="mis. 25000" :class="inputClass"/>
                                 <p v-if="form.errors.jumlah" class="text-xs text-red-500 mt-1">{{ form.errors.jumlah }}</p>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="quick-add-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <StickyNote :size="12" class="text-zinc-400"/> Catatan (opsional)
                                 </label>
-                                <input type="text" v-model="form.catatan" placeholder="mis. makan siang kantor" :class="inputClass"/>
+                                <input id="quick-add-catatan" type="text" v-model="form.catatan" placeholder="mis. makan siang kantor" :class="inputClass"/>
                             </div>
 
                             <button type="submit" :disabled="form.processing"

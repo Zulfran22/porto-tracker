@@ -1,59 +1,96 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# WealthID
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A personal finance tracker for gold-installment ("cicilan emas Pegadaian") investors — tracks monthly
+portfolio snapshots (gold, emergency fund, mutual funds, government bonds), daily cashflow, installment
+contracts, and progress toward savings targets.
 
-## About Laravel
+Stack: Laravel 12 (PHP 8.2) + Inertia 2 + Vue 3 (Composition API) + Tailwind + shadcn-vue.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **Dashboard** — monthly net worth, breakeven-price progress on the active gold contract, cashflow summary, saving simulator.
+- **Catat** — record/edit a month's portfolio snapshot (also available as a quick bottom sheet from any page via the FAB).
+- **Grafik** — trend charts across all recorded months.
+- **Keuangan** — daily income/expense ledger, per-category budgets, recurring transactions, custom categories.
+- **Kontrak Cicilan** — gold installment contract management (with optional supporting document upload).
+- **Target** — savings goals vs. current progress.
+- **Info** — static reference info (due dates, BEP formula, etc).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Local setup
 
-## Learning Laravel
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+npm run build   # or `npm run dev` for hot-reload during development
+php artisan serve
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+`.env.example` is the **local development** template (debug on, sqlite). For a production
+deploy, start from `.env.production.example` instead — see below.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Required environment variables beyond the Laravel defaults
 
-## Laravel Sponsors
+| Variable | Purpose | Default |
+|---|---|---|
+| `GOLD_PEGADAIAN_MARKUP` | Markup applied to live spot gold price to estimate the Pegadaian retail price | `1.04` |
+| `GOLD_FALLBACK_XAU_PRICE` | Fallback USD/oz gold price used if the live price API is unavailable | `3280` |
+| `FINANCE_CICILAN_GRAM_FALLBACK` | Fallback installment gram amount used when no active contract exists | `5` |
+| `SENTRY_LARAVEL_DSN` | Error monitoring — leave blank to disable (no-op with no DSN) | _(empty)_ |
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+`GOLD_*`/`FINANCE_*` also have JS-side counterparts in `resources/js/Composables/useFinanceConstants.js`
+that must be kept in sync manually with `config/gold.php`/`config/finance.php` — there is no single
+source of truth for these yet.
 
-### Premium Partners
+## Running tests
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan test        # feature/unit tests (sqlite in-memory, see phpunit.xml)
+vendor/bin/pint --test  # code style check
+vendor/bin/pint         # auto-fix code style
+```
 
-## Contributing
+CI (`.github/workflows/ci.yml`) runs both on every push/PR to `main`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## The daily "recurring transactions" job
 
-## Code of Conduct
+Active recurring transactions are applied automatically once a day (`recurring:apply`, scheduled
+`dailyAt('00:05')` in `routes/console.php`) — this requires the scheduler to actually be running in
+production; see the deploy commands below. The "Terapkan Bulan Ini" button in Keuangan is a manual
+on-demand trigger for the same idempotent logic (`app/Actions/ApplyRecurringTransactions.php`).
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Deployment
 
-## Security Vulnerabilities
+This repo carries **four different deploy configs** left over from evaluating different hosts —
+they all now background `php artisan schedule:work` (there's no system cron on these platforms) before
+starting the web server, so the daily recurring-transactions job actually runs wherever this is deployed:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+| File | Target |
+|---|---|
+| `railway.json` | Railway (current) |
+| `Dockerfile` | Any Docker host, incl. Railway if it prefers the Dockerfile over `railway.json` |
+| `Procfile` + `nixpacks.toml` | Northflank (earlier attempt) |
 
-## License
+Pick one platform and delete the other configs once you've settled — keeping all four risks them
+drifting out of sync.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+For a production `.env`, start from `.env.production.example` (already sets `APP_DEBUG=false`,
+`SESSION_SECURE_COOKIE=true`, Postgres, etc.) rather than `.env.example`. `AppServiceProvider` also
+force-disables debug mode and forces a secure session cookie whenever `APP_ENV=production`, as a
+safety net against a misconfigured environment.
+
+Every deploy runs `php artisan migrate --force` — there is no automated backup step; verify your
+host's database backup story independently before relying on this in production.
+
+## Architecture notes
+
+- Ownership checks on mutable resources (`Portofolio`, `Transaction`, `KontrakCicilanEmas`,
+  `RecurringTransaction`, `CustomCategory`) go through Policies (`app/Policies`) via
+  `$this->authorize()`, not ad-hoc `abort_if` checks.
+- Validation lives in `FormRequest` classes (`app/Http/Requests`), shared between store/update where
+  the rules are identical.
+- `portofolios` and `transactions` use `SoftDeletes`; `portofolios` also has a
+  `unique(user_id, bulan)` constraint — re-`catat`-ing a soft-deleted month restores the original row
+  rather than creating a duplicate (see `PortofolioController::store()`).

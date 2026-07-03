@@ -13,6 +13,8 @@ import {
     ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
 import { exportCSV } from '@/Composables/useExport'
+import { fmt, fmtJt } from '@/Composables/useCurrency'
+import { useEscapeKey } from '@/Composables/useEscapeKey'
 import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, DEFAULT_ALLOC } from '@/Composables/useFinanceConstants'
 
 
@@ -31,9 +33,6 @@ const cicilanGram     = computed(() => props.aktifKontrak ? Number(props.aktifKo
 const cicilanBulanan  = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN)
 const isCicilanEstimasi = computed(() => !props.aktifKontrak)
 const bepTarget       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
-
-const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
-const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
 // Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber
 // kebenaran dengan gram cicilan dari kontrak aktif — lihat app/Models/Portofolio.php.
@@ -79,8 +78,10 @@ const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
 // tidak jatuh ke DUE_DATE_DAY sebagai estimasi (konsisten dengan cicilanGram/cicilanBulanan).
 const today        = new Date()
 const todayDate    = today.getDate()
+// Bukan selalu 30 hari — Februari/bulan 31-hari bikin hitungan "N hari lagi" meleset kalau dihardcode.
+const daysInMonth  = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
 const dueDateDay   = computed(() => props.aktifKontrak ? new Date(props.aktifKontrak.tanggal_mulai).getDate() : DUE_DATE_DAY)
-const daysUntilDue = computed(() => todayDate <= dueDateDay.value ? dueDateDay.value - todayDate : 30 - todayDate + dueDateDay.value)
+const daysUntilDue = computed(() => todayDate <= dueDateDay.value ? dueDateDay.value - todayDate : daysInMonth - todayDate + dueDateDay.value)
 const showReminder = computed(() => todayDate >= 1 && todayDate <= dueDateDay.value + 2)
 const isUrgent     = computed(() => todayDate === dueDateDay.value)
 const isLate       = computed(() => todayDate > dueDateDay.value && todayDate <= dueDateDay.value + 2)
@@ -97,6 +98,7 @@ const layoutRef = ref(null)
 const deleteTarget = ref(null)
 const confirmHapus = (item) => { deleteTarget.value = item }
 const batalHapus   = () => { deleteTarget.value = null }
+useEscapeKey(deleteTarget, batalHapus)
 const hapus = () => {
     if (!deleteTarget.value) return
     router.delete(route('portofolio.destroy', deleteTarget.value.id), {
@@ -451,11 +453,11 @@ const exportPortofolio = () => {
                                     <span class="font-semibold text-zinc-900 dark:text-white">{{ item.bulan }}</span>
                                     <div class="flex items-center gap-2">
     <span class="text-yellow-500 dark:text-yellow-400 font-semibold text-sm">{{ fmtJt(item.total) }}</span>
-    <button @click="layoutRef?.openCatat(item.id)"
+    <button @click="layoutRef?.openCatat(item.id)" :aria-label="`Edit data ${item.bulan}`"
         class="p-1.5 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
         <Pencil :size="13"/>
     </button>
-    <button @click="confirmHapus(item)"
+    <button @click="confirmHapus(item)" :aria-label="`Hapus data ${item.bulan}`"
         class="p-1.5 rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
         <Trash2 :size="13"/>
     </button>
@@ -493,7 +495,7 @@ const exportPortofolio = () => {
     <!-- DELETE MODAL -->
     <Teleport to="body">
         <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
-            <div v-if="deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="batalHapus">
+            <div v-if="deleteTarget" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="batalHapus">
                 <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
                 <div class="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 p-6">
                     <div class="flex items-start gap-3 mb-5">
@@ -501,10 +503,10 @@ const exportPortofolio = () => {
                             <Trash2 :size="18" class="text-red-600 dark:text-red-400"/>
                         </div>
                         <div class="flex-1">
-                            <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">Hapus data {{ deleteTarget?.bulan }}?</h3>
+                            <h3 id="delete-modal-title" class="font-semibold text-zinc-900 dark:text-white text-sm">Hapus data {{ deleteTarget?.bulan }}?</h3>
                             <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Data portofolio bulan ini akan dihapus permanen dan tidak bisa dikembalikan.</p>
                         </div>
-                        <button @click="batalHapus" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                        <button @click="batalHapus" aria-label="Tutup" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                             <X :size="16"/>
                         </button>
                     </div>

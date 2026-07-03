@@ -10,6 +10,7 @@ import {
     StickyNote, Globe, Calendar, Loader2, AlertTriangle
 } from 'lucide-vue-next'
 import { CICILAN, DUE_DATE_DAY, CICILAN_TENOR_END } from '@/Composables/useFinanceConstants'
+import { inputClass } from '@/Composables/useFormStyles'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
@@ -68,8 +69,6 @@ async function fetchHargaEmas() {
 }
 
 const submit = () => form.post(route('portofolio.store'))
-
-const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:border-yellow-500 focus:ring-0 outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
 </script>
 
 <template>
@@ -92,17 +91,17 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-3">
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-bulan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Calendar :size="12" class="text-zinc-400"/> Bulan & tahun
                             </label>
-                            <input type="month" v-model="form.bulan" :class="inputClass"/>
+                            <input id="catat-page-bulan" type="month" v-model="form.bulan" :class="inputClass"/>
                             <p v-if="form.errors.bulan" class="text-xs text-red-500 mt-1">{{ form.errors.bulan }}</p>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-cicilan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                             </label>
-                            <input type="number" v-model="form.cicilan" :class="inputClass"/>
+                            <input id="catat-page-cicilan" type="number" v-model="form.cicilan" :class="inputClass"/>
                             <p class="text-xs text-zinc-400 mt-1">
                                 Jatuh tempo tgl {{ DUE_DATE_DAY }} setiap bulan · kontrak lunas {{ tenorEndLabel }}
                                 <span v-if="aktifKontrak"> · No. {{ aktifKontrak.nomor_kontrak }}</span>
@@ -120,16 +119,16 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-3">
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-emas-gram" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai — total gram dimiliki
                             </label>
-                            <input type="number" step="0.01" v-model="form.emas_gram"
+                            <input id="catat-page-emas-gram" type="number" step="0.01" v-model="form.emas_gram"
                                 placeholder="mis. 0.50" :class="inputClass"/>
                             <p v-if="form.errors.emas_gram" class="text-xs text-red-500 mt-1">{{ form.errors.emas_gram }}</p>
                         </div>
                         <div>
                             <div class="flex justify-between items-center mb-1.5">
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                                <label for="catat-page-harga-emas" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                                     <Globe :size="12" class="text-zinc-400"/> Harga emas (Rp/gram)
                                 </label>
                                 <button type="button" @click="fetchHargaEmas" :disabled="loadingHarga"
@@ -162,7 +161,7 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                             <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                                 <AlertTriangle :size="12"/> {{ errorHarga }}
                             </div>
-                            <input type="number" v-model="form.harga_emas"
+                            <input id="catat-page-harga-emas" type="number" v-model="form.harga_emas"
                                 placeholder="mis. 2545000" :class="inputClass"/>
                             <p v-if="form.errors.harga_emas" class="text-xs text-red-500 mt-1">{{ form.errors.harga_emas }}</p>
                             <p v-else-if="lastHargaEmas && !form.harga_emas" class="text-xs text-zinc-400 mt-1">
@@ -181,22 +180,22 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-3">
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-dana-darurat" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat — RDPU (Rp)
                             </label>
-                            <input type="number" v-model="form.dana_darurat" :class="inputClass"/>
+                            <input id="catat-page-dana-darurat" type="number" v-model="form.dana_darurat" :class="inputClass"/>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-reksa-dana" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana (Rp)
                             </label>
-                            <input type="number" v-model="form.reksa_dana" :class="inputClass"/>
+                            <input id="catat-page-reksa-dana" type="number" v-model="form.reksa_dana" :class="inputClass"/>
                         </div>
                         <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                            <label for="catat-page-sbn" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN / Deposito (Rp)
                             </label>
-                            <input type="number" v-model="form.sbn" :class="inputClass"/>
+                            <input id="catat-page-sbn" type="number" v-model="form.sbn" :class="inputClass"/>
                         </div>
                     </CardContent>
                 </Card>
@@ -204,10 +203,10 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                 <!-- CATATAN -->
                 <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardContent class="p-4">
-                        <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                        <label for="catat-page-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                             <StickyNote :size="12" class="text-zinc-400"/> Catatan (opsional)
                         </label>
-                        <input type="text" v-model="form.catatan"
+                        <input id="catat-page-catatan" type="text" v-model="form.catatan"
                             placeholder="mis. dapat diskon GAJIANEMAS" :class="inputClass"/>
                     </CardContent>
                 </Card>

@@ -9,6 +9,7 @@ import {
     Lock, Coins, Shield, TrendingUp, Landmark,
     Clock, Calendar, Code2, Hash
 } from 'lucide-vue-next'
+import { fmt } from '@/Composables/useCurrency'
 import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
@@ -16,8 +17,6 @@ const props = defineProps({
     lastCicilan:   { type: Number, default: null },
     aktifKontrak:  { type: Object, default: null },
 })
-
-const fmt = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
 
 // Kontrak aktif jadi sumber utama; kalau tidak ada, jatuh ke entri portofolio terakhir,
 // baru ke konstanta statis sebagai estimasi paling akhir.

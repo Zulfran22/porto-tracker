@@ -3,6 +3,7 @@ import InputError from '@/Components/InputError.vue'
 import { useForm } from '@inertiajs/vue3'
 import { nextTick, ref } from 'vue'
 import { Trash2, AlertTriangle, X, Lock } from 'lucide-vue-next'
+import { useEscapeKey } from '@/Composables/useEscapeKey'
 
 const confirmingUserDeletion = ref(false)
 const passwordInput = ref(null)
@@ -30,6 +31,8 @@ const closeModal = () => {
     form.clearErrors()
     form.reset()
 }
+
+useEscapeKey(confirmingUserDeletion, closeModal)
 </script>
 
 <template>
@@ -51,6 +54,7 @@ const closeModal = () => {
         <Teleport to="body">
             <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
                 <div v-if="confirmingUserDeletion"
+                    role="dialog" aria-modal="true" aria-labelledby="delete-account-title"
                     class="fixed inset-0 z-50 flex items-center justify-center p-4"
                     @click.self="closeModal">
                     <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
@@ -61,21 +65,22 @@ const closeModal = () => {
                                 <AlertTriangle :size="18" class="text-red-600 dark:text-red-400"/>
                             </div>
                             <div>
-                                <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">Hapus akun?</h3>
+                                <h3 id="delete-account-title" class="font-semibold text-zinc-900 dark:text-white text-sm">Hapus akun?</h3>
                                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                                     Tindakan ini tidak bisa dibatalkan. Masukkan password untuk konfirmasi.
                                 </p>
                             </div>
-                            <button @click="closeModal" class="ml-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                            <button @click="closeModal" aria-label="Tutup" class="ml-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                                 <X :size="16"/>
                             </button>
                         </div>
 
                         <div class="space-y-1.5 mb-5">
-                            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
+                            <label for="delete-account-password" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
                             <div class="relative">
                                 <Lock :size="15" class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"/>
                                 <input
+                                    id="delete-account-password"
                                     ref="passwordInput"
                                     type="password"
                                     v-model="form.password"

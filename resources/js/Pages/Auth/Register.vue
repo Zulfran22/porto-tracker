@@ -105,6 +105,7 @@ const submit = () => {
                         :class="{ 'border-red-400 dark:border-red-500': form.errors.password }"
                     />
                     <button type="button" @click="showPassword = !showPassword"
+                        :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
                         <EyeOff v-if="showPassword" :size="15"/>
                         <Eye v-else :size="15"/>
@@ -135,6 +136,7 @@ const submit = () => {
                         :class="{ 'border-red-400 dark:border-red-500': form.errors.password_confirmation }"
                     />
                     <button type="button" @click="showConfirm = !showConfirm"
+                        :aria-label="showConfirm ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
                         <EyeOff v-if="showConfirm" :size="15"/>
                         <Eye v-else :size="15"/>

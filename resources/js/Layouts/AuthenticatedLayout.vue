@@ -36,6 +36,8 @@ import {
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
 import { Separator } from '@/Components/ui/separator'
 import { useTheme } from '@/Composables/useTheme'
+import { inputClass } from '@/Composables/useFormStyles'
+import { useEscapeKey } from '@/Composables/useEscapeKey'
 
 const page = usePage()
 const user = computed(() => page.props.auth.user)
@@ -136,6 +138,8 @@ function closeCatat() {
     showCatatModal.value = false
 }
 
+useEscapeKey(showCatatModal, closeCatat)
+
 function submitCatat() {
     const options = { onSuccess: () => { showCatatModal.value = false } }
     if (existingId.value) {
@@ -144,8 +148,6 @@ function submitCatat() {
         catatForm.post(route('portofolio.store'), options)
     }
 }
-
-const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:border-yellow-500 focus:ring-0 outline-none transition-colors placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
 
 defineExpose({ openCatat })
 </script>
@@ -161,7 +163,7 @@ defineExpose({ openCatat })
                     <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">WealthID</span>
                 </Link>
                 <div class="flex items-center gap-2">
-                    <button @click="toggleTheme"
+                    <button @click="toggleTheme" :aria-label="isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'"
                         class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                         <Sun v-if="isDark" :size="16" />
                         <Moon v-else :size="16" />
@@ -379,11 +381,12 @@ defineExpose({ openCatat })
                     leave-from-class="translate-y-0"
                     leave-to-class="translate-y-full"
                     appear>
-                    <div v-if="showCatatModal" class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-x border-zinc-200 dark:border-zinc-800 px-4 pt-3 pb-6">
+                    <div v-if="showCatatModal" role="dialog" aria-modal="true" aria-labelledby="catat-modal-title"
+                        class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-x border-zinc-200 dark:border-zinc-800 px-4 pt-3 pb-6">
                         <div class="w-10 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto mb-3"/>
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-semibold text-zinc-900 dark:text-white text-sm">{{ existingId ? 'Edit' : 'Catat' }} data portofolio</h3>
-                            <button @click="closeCatat" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                            <h3 id="catat-modal-title" class="font-semibold text-zinc-900 dark:text-white text-sm">{{ existingId ? 'Edit' : 'Catat' }} data portofolio</h3>
+                            <button @click="closeCatat" aria-label="Tutup" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
                                 <X :size="18"/>
                             </button>
                         </div>
@@ -404,32 +407,32 @@ defineExpose({ openCatat })
                         <form v-else @submit.prevent="submitCatat" class="space-y-3">
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-bulan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Calendar :size="12" class="text-zinc-400"/> Bulan & tahun
                                 </label>
-                                <input type="month" v-model="catatForm.bulan" :class="inputClass"/>
+                                <input id="catat-bulan" type="month" v-model="catatForm.bulan" :class="inputClass"/>
                                 <p v-if="catatForm.errors.bulan" class="text-xs text-red-500 mt-1">{{ catatForm.errors.bulan }}</p>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-cicilan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                                 </label>
-                                <input type="number" v-model="catatForm.cicilan" :class="inputClass"/>
+                                <input id="catat-cicilan" type="number" v-model="catatForm.cicilan" :class="inputClass"/>
                                 <p v-if="catatForm.errors.cicilan" class="text-xs text-red-500 mt-1">{{ catatForm.errors.cicilan }}</p>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-emas-gram" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai — total gram dimiliki
                                 </label>
-                                <input type="number" step="0.01" v-model="catatForm.emas_gram" placeholder="mis. 0.50" :class="inputClass"/>
+                                <input id="catat-emas-gram" type="number" step="0.01" v-model="catatForm.emas_gram" placeholder="mis. 0.50" :class="inputClass"/>
                                 <p v-if="catatForm.errors.emas_gram" class="text-xs text-red-500 mt-1">{{ catatForm.errors.emas_gram }}</p>
                             </div>
 
                             <div>
                                 <div class="flex justify-between items-center mb-1.5">
-                                    <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                                    <label for="catat-harga-emas" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                                         <Globe :size="12" class="text-zinc-400"/> Harga emas (Rp/gram)
                                     </label>
                                     <button type="button" @click="fetchHargaEmas" :disabled="loadingHarga"
@@ -453,36 +456,36 @@ defineExpose({ openCatat })
                                 <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                                     <AlertTriangle :size="12"/> {{ errorHarga }}
                                 </div>
-                                <input type="number" v-model="catatForm.harga_emas" placeholder="mis. 2545000" :class="inputClass"/>
+                                <input id="catat-harga-emas" type="number" v-model="catatForm.harga_emas" placeholder="mis. 2545000" :class="inputClass"/>
                                 <p v-if="catatForm.errors.harga_emas" class="text-xs text-red-500 mt-1">{{ catatForm.errors.harga_emas }}</p>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-dana-darurat" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat — RDPU (Rp)
                                 </label>
-                                <input type="number" v-model="catatForm.dana_darurat" :class="inputClass"/>
+                                <input id="catat-dana-darurat" type="number" v-model="catatForm.dana_darurat" :class="inputClass"/>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-reksa-dana" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana (Rp)
                                 </label>
-                                <input type="number" v-model="catatForm.reksa_dana" :class="inputClass"/>
+                                <input id="catat-reksa-dana" type="number" v-model="catatForm.reksa_dana" :class="inputClass"/>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-sbn" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN / Deposito (Rp)
                                 </label>
-                                <input type="number" v-model="catatForm.sbn" :class="inputClass"/>
+                                <input id="catat-sbn" type="number" v-model="catatForm.sbn" :class="inputClass"/>
                             </div>
 
                             <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                <label for="catat-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <StickyNote :size="12" class="text-zinc-400"/> Catatan (opsional)
                                 </label>
-                                <input type="text" v-model="catatForm.catatan" placeholder="mis. dapat diskon GAJIANEMAS" :class="inputClass"/>
+                                <input id="catat-catatan" type="text" v-model="catatForm.catatan" placeholder="mis. dapat diskon GAJIANEMAS" :class="inputClass"/>
                             </div>
 
                             <div class="flex gap-2 pt-1">

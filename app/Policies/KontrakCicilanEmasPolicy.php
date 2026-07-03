@@ -7,6 +7,11 @@ use App\Models\User;
 
 class KontrakCicilanEmasPolicy
 {
+    public function view(User $user, KontrakCicilanEmas $kontrak): bool
+    {
+        return $kontrak->user_id === $user->id;
+    }
+
     public function update(User $user, KontrakCicilanEmas $kontrak): bool
     {
         return $kontrak->user_id === $user->id;

@@ -6,6 +6,7 @@ import { Badge } from '@/Components/ui/badge'
 import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
+import { fmt, fmtJt } from '@/Composables/useCurrency'
 import { CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 Chart.register(...registerables)
 
@@ -19,9 +20,6 @@ const chartTotal  = ref(null)
 const chartHarga  = ref(null)
 const chartEmas   = ref(null)
 const chartInvest = ref(null)
-
-const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
-const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
 // Gram cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
 // statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.

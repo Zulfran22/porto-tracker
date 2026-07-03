@@ -10,6 +10,7 @@ import {
     Coins, Shield, TrendingUp, Save,
     CheckCircle2, Loader2
 } from 'lucide-vue-next'
+import { fmt, fmtJt } from '@/Composables/useCurrency'
 import { CICILAN, CICILAN_GRAM, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
@@ -19,9 +20,6 @@ const props = defineProps({
 })
 
 const last = computed(() => props.portofolios?.at(-1) ?? null)
-
-const fmt   = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID')
-const fmtJt = (n) => 'Rp' + (n / 1000000).toFixed(2) + 'jt'
 
 const form = useForm({
     target_emas:    props.target.target_emas,

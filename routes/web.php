@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/kontrak-cicilan', [KontrakCicilanController::class, 'store'])->name('kontrak-cicilan.store');
     Route::put('/kontrak-cicilan/{kontrak}', [KontrakCicilanController::class, 'update'])->name('kontrak-cicilan.update');
     Route::delete('/kontrak-cicilan/{kontrak}', [KontrakCicilanController::class, 'destroy'])->name('kontrak-cicilan.destroy');
+    Route::get('/kontrak-cicilan/{kontrak}/file', [KontrakCicilanController::class, 'file'])->name('kontrak-cicilan.file');
 
     // Grafik
     Route::get('/grafik', [PortofolioController::class, 'grafik'])->name('grafik');

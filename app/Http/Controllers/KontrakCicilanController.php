@@ -22,7 +22,7 @@ class KontrakCicilanController extends Controller
 
     public function store(KontrakCicilanRequest $request)
     {
-        $path = $request->file('file_kontrak')?->store('kontrak', 'public');
+        $path = $request->file('file_kontrak')?->store('kontrak', 'local');
 
         KontrakCicilanEmas::create([
             'user_id' => auth()->id(),
@@ -51,9 +51,9 @@ class KontrakCicilanController extends Controller
         $path = $kontrak->file_kontrak;
         if ($request->hasFile('file_kontrak')) {
             if ($path) {
-                Storage::disk('public')->delete($path);
+                Storage::disk('local')->delete($path);
             }
-            $path = $request->file('file_kontrak')->store('kontrak', 'public');
+            $path = $request->file('file_kontrak')->store('kontrak', 'local');
         }
 
         $kontrak->update([
@@ -81,11 +81,23 @@ class KontrakCicilanController extends Controller
         $this->authorize('delete', $kontrak);
 
         if ($kontrak->file_kontrak) {
-            Storage::disk('public')->delete($kontrak->file_kontrak);
+            Storage::disk('local')->delete($kontrak->file_kontrak);
         }
 
         $kontrak->delete();
 
         return back()->with('success', 'Kontrak berhasil dihapus!');
+    }
+
+    // Dokumen kontrak (berisi no. rekening) disimpan di disk private — file ini
+    // satu-satunya jalur yang bisa membukanya, dengan pengecekan kepemilikan,
+    // menggantikan URL /storage/... lama yang bisa diakses siapa saja tanpa auth.
+    public function file(KontrakCicilanEmas $kontrak)
+    {
+        $this->authorize('view', $kontrak);
+
+        abort_unless($kontrak->file_kontrak, 404);
+
+        return Storage::disk('local')->response($kontrak->file_kontrak);
     }
 }
