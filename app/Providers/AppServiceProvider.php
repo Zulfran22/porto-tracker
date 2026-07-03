@@ -21,5 +21,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // Belt-and-suspenders: never allow debug mode or a non-secure session
+        // cookie in production, even if the environment forgets to set them.
+        if ($this->app->environment('production')) {
+            config([
+                'app.debug' => false,
+                'session.secure' => true,
+            ]);
+        }
     }
 }

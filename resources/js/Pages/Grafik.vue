@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, onBeforeUnmount, ref, computed, watch } from 'vue'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
@@ -10,7 +10,7 @@ import { CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 Chart.register(...registerables)
 
 const props = defineProps({
-    portofolios: Array,
+    portofolios: { type: Array, default: () => [] },
     aktifKontrak: { type: Object, default: null },
 })
 const { isDark } = useTheme()
@@ -44,8 +44,21 @@ const hargaSekarang  = computed(() => last.value ? Number(last.value.harga_emas)
 const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / bepTarget.value * 100)))
 const bepSisa        = computed(() => Math.max(0, bepTarget.value - hargaSekarang.value))
 
-onMounted(() => {
+let totalChart = null
+let hargaChart = null
+let emasChart = null
+let investChart = null
+
+function destroyCharts() {
+    totalChart?.destroy()
+    hargaChart?.destroy()
+    emasChart?.destroy()
+    investChart?.destroy()
+}
+
+function buildCharts() {
     if (!props.portofolios.length) return
+    destroyCharts()
 
     const dark   = isDark.value
     const gridC  = dark ? '#27272a' : '#e4e4e7'
@@ -69,7 +82,7 @@ onMounted(() => {
         }
     })
 
-    new Chart(chartTotal.value, {
+    totalChart = new Chart(chartTotal.value, {
         type: 'line',
         data: { labels, datasets: [{
             label: 'Total', data: totals,
@@ -84,7 +97,7 @@ onMounted(() => {
         }
     })
 
-    new Chart(chartHarga.value, {
+    hargaChart = new Chart(chartHarga.value, {
         type: 'line',
         data: { labels, datasets: [
             { label: 'Harga/gram', data: harga, borderColor: '#fbbf24',
@@ -107,7 +120,7 @@ onMounted(() => {
         }
     })
 
-    new Chart(chartEmas.value, {
+    emasChart = new Chart(chartEmas.value, {
         type: 'bar',
         data: { labels, datasets: [{
             label: 'Gram', data: grams,
@@ -121,7 +134,7 @@ onMounted(() => {
         }
     })
 
-    new Chart(chartInvest.value, {
+    investChart = new Chart(chartInvest.value, {
         type: 'bar',
         data: { labels, datasets: [
             { label: 'Dana darurat', data: darurat, backgroundColor: '#3b82f6', borderRadius: 4, borderSkipped: false },
@@ -140,7 +153,11 @@ onMounted(() => {
             }
         }
     })
-})
+}
+
+onMounted(buildCharts)
+watch(isDark, buildCharts)
+onBeforeUnmount(destroyCharts)
 </script>
 
 <template>

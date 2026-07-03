@@ -13,8 +13,8 @@ import {
 import { CICILAN, CICILAN_GRAM, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
-    portofolios: Array,
-    target: Object,
+    portofolios: { type: Array, default: () => [] },
+    target: { type: Object, default: () => ({ target_emas: 0, target_darurat: 0, target_reksa: 0 }) },
     aktifKontrak: { type: Object, default: null },
 })
 

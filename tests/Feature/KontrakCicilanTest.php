@@ -27,25 +27,25 @@ class KontrakCicilanTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->post('/kontrak-cicilan', [
-            'nomor_kontrak'   => '17805391142154415301',
-            'cabang'          => 'CP Bontang',
-            'no_rekening'     => '1090 9266 2901 5244',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'sewa_modal'      => 2033750,
-            'biaya_admin'     => 25000,
-            'catatan'         => 'PIC Toni Sugianto',
+            'nomor_kontrak' => '17805391142154415301',
+            'cabang' => 'CP Bontang',
+            'no_rekening' => '1090 9266 2901 5244',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'sewa_modal' => 2033750,
+            'biaya_admin' => 25000,
+            'catatan' => 'PIC Toni Sugianto',
         ]);
 
         $response->assertRedirect(route('kontrak-cicilan.index'));
 
         $this->assertDatabaseHas('kontrak_cicilan_emas', [
-            'user_id'        => $user->id,
-            'nomor_kontrak'  => '17805391142154415301',
+            'user_id' => $user->id,
+            'nomor_kontrak' => '17805391142154415301',
             'angsuran_bulan' => 1032662,
-            'status'         => 'aktif',
+            'status' => 'aktif',
             'tanggal_selesai' => '2027-06-04 00:00:00',
         ]);
     }
@@ -56,13 +56,13 @@ class KontrakCicilanTest extends TestCase
         $other = User::factory()->create();
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $owner->id,
-            'nomor_kontrak'   => 'X',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $owner->id,
+            'nomor_kontrak' => 'X',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
         ]);
 
         $this->actingAs($other)->delete("/kontrak-cicilan/{$kontrak->id}")->assertForbidden();
@@ -79,12 +79,12 @@ class KontrakCicilanTest extends TestCase
         $file = UploadedFile::fake()->create('kontrak.pdf', 100, 'application/pdf');
 
         $response = $this->actingAs($user)->post('/kontrak-cicilan', [
-            'nomor_kontrak'   => '17805391142154415301',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'file_kontrak'    => $file,
+            'nomor_kontrak' => '17805391142154415301',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'file_kontrak' => $file,
         ]);
 
         $response->assertRedirect(route('kontrak-cicilan.index'));
@@ -104,12 +104,12 @@ class KontrakCicilanTest extends TestCase
         $file = UploadedFile::fake()->create('virus.exe', 100, 'application/x-msdownload');
 
         $response = $this->actingAs($user)->post('/kontrak-cicilan', [
-            'nomor_kontrak'   => '17805391142154415301',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'file_kontrak'    => $file,
+            'nomor_kontrak' => '17805391142154415301',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'file_kontrak' => $file,
         ]);
 
         $response->assertSessionHasErrors('file_kontrak');
@@ -121,32 +121,32 @@ class KontrakCicilanTest extends TestCase
         $user = User::factory()->create();
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $user->id,
-            'nomor_kontrak'   => 'OLD-1',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'OLD-1',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
         ]);
 
         $response = $this->actingAs($user)->put("/kontrak-cicilan/{$kontrak->id}", [
-            'nomor_kontrak'   => 'NEW-1',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1100000,
-            'status'          => 'lunas',
+            'nomor_kontrak' => 'NEW-1',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1100000,
+            'status' => 'lunas',
         ]);
 
         $response->assertRedirect(route('kontrak-cicilan.index'));
 
         $this->assertDatabaseHas('kontrak_cicilan_emas', [
-            'id'             => $kontrak->id,
-            'nomor_kontrak'  => 'NEW-1',
+            'id' => $kontrak->id,
+            'nomor_kontrak' => 'NEW-1',
             'angsuran_bulan' => 1100000,
-            'status'         => 'lunas',
+            'status' => 'lunas',
         ]);
     }
 
@@ -156,23 +156,23 @@ class KontrakCicilanTest extends TestCase
         $other = User::factory()->create();
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $owner->id,
-            'nomor_kontrak'   => 'OLD-1',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $owner->id,
+            'nomor_kontrak' => 'OLD-1',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
         ]);
 
         $this->actingAs($other)->put("/kontrak-cicilan/{$kontrak->id}", [
-            'nomor_kontrak'   => 'HACKED',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1,
-            'status'          => 'aktif',
+            'nomor_kontrak' => 'HACKED',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1,
+            'status' => 'aktif',
         ])->assertForbidden();
 
         $this->assertDatabaseHas('kontrak_cicilan_emas', ['id' => $kontrak->id, 'nomor_kontrak' => 'OLD-1']);
@@ -188,25 +188,25 @@ class KontrakCicilanTest extends TestCase
         $oldPath = $oldFile->store('kontrak', 'public');
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $user->id,
-            'nomor_kontrak'   => 'X',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'X',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
-            'file_kontrak'    => $oldPath,
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
+            'file_kontrak' => $oldPath,
         ]);
 
         $this->actingAs($user)->put("/kontrak-cicilan/{$kontrak->id}", [
-            'nomor_kontrak'   => 'X',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
-            'file_kontrak'    => $newFile,
+            'nomor_kontrak' => 'X',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
+            'file_kontrak' => $newFile,
         ]);
 
         Storage::disk('public')->assertMissing($oldPath);
@@ -222,25 +222,25 @@ class KontrakCicilanTest extends TestCase
         $file = UploadedFile::fake()->create('kontrak.pdf', 100, 'application/pdf');
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $user->id,
-            'nomor_kontrak'   => 'OLD-1',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'OLD-1',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
         ]);
 
         $response = $this->actingAs($user)->post("/kontrak-cicilan/{$kontrak->id}", [
-            '_method'         => 'put',
-            'nomor_kontrak'   => 'NEW-1',
-            'tanggal_mulai'   => '2026-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'lunas',
-            'file_kontrak'    => $file,
+            '_method' => 'put',
+            'nomor_kontrak' => 'NEW-1',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'lunas',
+            'file_kontrak' => $file,
         ]);
 
         $response->assertRedirect(route('kontrak-cicilan.index'));

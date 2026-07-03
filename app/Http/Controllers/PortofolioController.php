@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PortofolioRequest;
+use App\Models\KontrakCicilanEmas;
 use App\Models\Portofolio;
 use App\Models\Transaction;
-use App\Models\KontrakCicilanEmas;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PortofolioController extends Controller
@@ -25,12 +27,48 @@ class PortofolioController extends Controller
         return Inertia::render('Dashboard', [
             'portofolios' => $data,
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
-            'cashflow'    => [
-                'income'  => $cashflow->where('type', 'income')->sum('jumlah'),
+            'cashflow' => [
+                'income' => $cashflow->where('type', 'income')->sum('jumlah'),
                 'expense' => $cashflow->where('type', 'expense')->sum('jumlah'),
-                'net'     => $cashflow->where('type', 'income')->sum('jumlah')
+                'net' => $cashflow->where('type', 'income')->sum('jumlah')
                            - $cashflow->where('type', 'expense')->sum('jumlah'),
             ],
+        ]);
+    }
+
+    // Halaman /catat (form penuh, terpisah dari modal cepat di FAB)
+    public function create()
+    {
+        $last = Portofolio::where('user_id', auth()->id())
+            ->orderBy('bulan', 'desc')->first();
+
+        return Inertia::render('Catat', [
+            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
+        ]);
+    }
+
+    // Halaman /grafik
+    public function grafik()
+    {
+        $data = Portofolio::where('user_id', auth()->id())->orderBy('bulan')->get();
+
+        return Inertia::render('Grafik', [
+            'portofolios' => $data,
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
+        ]);
+    }
+
+    // Halaman /info
+    public function info()
+    {
+        $last = Portofolio::where('user_id', auth()->id())
+            ->orderBy('bulan', 'desc')->first();
+
+        return Inertia::render('Info', [
+            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'lastCicilan' => $last ? (int) $last->cicilan : null,
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
     }
 
@@ -45,50 +83,54 @@ class PortofolioController extends Controller
             $existing = Portofolio::where('user_id', $userId)->findOrFail($request->id);
             $bulan = $existing->bulan;
         } else {
-            $bulan    = now()->format('Y-m');
+            $bulan = now()->format('Y-m');
             $existing = Portofolio::where('user_id', $userId)->where('bulan', $bulan)->first();
         }
 
         $last = Portofolio::where('user_id', $userId)->orderBy('bulan', 'desc')->first();
 
         return response()->json([
-            'bulan'         => $bulan,
-            'existing'      => $existing,
+            'bulan' => $bulan,
+            'existing' => $existing,
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
-            'aktifKontrak'  => KontrakCicilanEmas::aktifUntuk($userId),
+            'aktifKontrak' => KontrakCicilanEmas::aktifUntuk($userId),
         ]);
     }
 
-    // Simpan data baru / update bulan yang sama
-    public function store(Request $request)
+    // Simpan data baru / update bulan yang sama. Dicari termasuk yang sudah
+    // soft-deleted supaya "catat ulang" bulan yang pernah dihapus me-restore
+    // baris lama, bukan bentrok dengan unique(user_id,bulan) di DB.
+    public function store(PortofolioRequest $request)
     {
-        $request->validate([
-            'bulan'        => 'required|string',
-            'emas_gram'    => 'required|numeric|min:0',
-            'harga_emas'   => 'required|integer|min:0',
-            'cicilan'      => 'required|integer|min:0',
-            'dana_darurat' => 'nullable|integer|min:0',
-            'reksa_dana'   => 'nullable|integer|min:0',
-            'sbn'          => 'nullable|integer|min:0',
-            'catatan'      => 'nullable|string|max:255',
-        ]);
+        DB::transaction(function () use ($request) {
+            $portofolio = Portofolio::withTrashed()
+                ->where('user_id', auth()->id())
+                ->where('bulan', $request->bulan)
+                ->first();
 
-        // Update kalau bulan sama, insert kalau baru
-        Portofolio::updateOrCreate(
-            [
-                'user_id' => auth()->id(),
-                'bulan'   => $request->bulan,
-            ],
-            [
-                'emas_gram'    => $request->emas_gram,
-                'harga_emas'   => $request->harga_emas,
-                'cicilan'      => $request->cicilan,
+            $attributes = [
+                'emas_gram' => $request->emas_gram,
+                'harga_emas' => $request->harga_emas,
+                'cicilan' => $request->cicilan,
                 'dana_darurat' => $request->dana_darurat ?? 0,
-                'reksa_dana'   => $request->reksa_dana ?? 0,
-                'sbn'          => $request->sbn ?? 0,
-                'catatan'      => $request->catatan,
-            ]
-        );
+                'reksa_dana' => $request->reksa_dana ?? 0,
+                'sbn' => $request->sbn ?? 0,
+                'catatan' => $request->catatan,
+            ];
+
+            if ($portofolio) {
+                if ($portofolio->trashed()) {
+                    $portofolio->restore();
+                }
+                $portofolio->update($attributes);
+            } else {
+                Portofolio::create([
+                    'user_id' => auth()->id(),
+                    'bulan' => $request->bulan,
+                    ...$attributes,
+                ]);
+            }
+        });
 
         return redirect()->route('dashboard')
             ->with('success', 'Data berhasil disimpan!');
@@ -97,8 +139,7 @@ class PortofolioController extends Controller
     // Hapus satu data
     public function destroy(Portofolio $portofolio)
     {
-        // Pastikan hanya pemilik yang bisa hapus
-        abort_if($portofolio->user_id !== auth()->id(), 403);
+        $this->authorize('delete', $portofolio);
         $portofolio->delete();
 
         return redirect()->route('dashboard')
@@ -106,35 +147,22 @@ class PortofolioController extends Controller
     }
 
     // Update — simpan perubahan
-public function update(Request $request, Portofolio $portofolio)
-{
-    abort_if($portofolio->user_id !== auth()->id(), 403);
+    public function update(PortofolioRequest $request, Portofolio $portofolio)
+    {
+        $this->authorize('update', $portofolio);
 
-    $request->validate([
-        'bulan'        => 'required|string',
-        'emas_gram'    => 'required|numeric|min:0',
-        'harga_emas'   => 'required|integer|min:0',
-        'cicilan'      => 'required|integer|min:0',
-        'dana_darurat' => 'nullable|integer|min:0',
-        'reksa_dana'   => 'nullable|integer|min:0',
-        'sbn'          => 'nullable|integer|min:0',
-        'catatan'      => 'nullable|string|max:255',
-    ]);
+        $portofolio->update([
+            'bulan' => $request->bulan,
+            'emas_gram' => $request->emas_gram,
+            'harga_emas' => $request->harga_emas,
+            'cicilan' => $request->cicilan,
+            'dana_darurat' => $request->dana_darurat ?? 0,
+            'reksa_dana' => $request->reksa_dana ?? 0,
+            'sbn' => $request->sbn ?? 0,
+            'catatan' => $request->catatan,
+        ]);
 
-    $portofolio->update([
-        'bulan'        => $request->bulan,
-        'emas_gram'    => $request->emas_gram,
-        'harga_emas'   => $request->harga_emas,
-        'cicilan'      => $request->cicilan,
-        'dana_darurat' => $request->dana_darurat ?? 0,
-        'reksa_dana'   => $request->reksa_dana ?? 0,
-        'sbn'          => $request->sbn ?? 0,
-        'catatan'      => $request->catatan,
-    ]);
-
-    return redirect()->route('dashboard')
-        ->with('success', 'Data berhasil diupdate!');
-}
-
-
+        return redirect()->route('dashboard')
+            ->with('success', 'Data berhasil diupdate!');
+    }
 }

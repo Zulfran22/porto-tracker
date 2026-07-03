@@ -27,13 +27,13 @@ class KontrakCicilanEmas extends Model
     ];
 
     protected $casts = [
-        'tanggal_mulai'   => 'date',
+        'tanggal_mulai' => 'date',
         'tanggal_selesai' => 'date',
-        'tenor_bulan'     => 'integer',
-        'total_gram'      => 'float',
-        'angsuran_bulan'  => 'integer',
-        'sewa_modal'      => 'integer',
-        'biaya_admin'     => 'integer',
+        'tenor_bulan' => 'integer',
+        'total_gram' => 'float',
+        'angsuran_bulan' => 'integer',
+        'sewa_modal' => 'integer',
+        'biaya_admin' => 'integer',
     ];
 
     protected $appends = ['bep_per_gram'];

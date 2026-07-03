@@ -35,22 +35,16 @@ import {
 } from '@/Components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
 import { Separator } from '@/Components/ui/separator'
+import { useTheme } from '@/Composables/useTheme'
 
 const page = usePage()
 const user = computed(() => page.props.auth.user)
 
-const isDark = ref(localStorage.getItem('theme') === 'dark')
-
-function toggleTheme() {
-    isDark.value = !isDark.value
-    if (isDark.value) {
-        document.documentElement.classList.add('dark')
-        localStorage.setItem('theme', 'dark')
-    } else {
-        document.documentElement.classList.remove('dark')
-        localStorage.setItem('theme', 'light')
-    }
-}
+// Single source of truth for dark mode — shared with every page that themes
+// its Chart.js instances off this same composable (Dashboard/Keuangan/Grafik).
+// A separate local isDark here previously let the toggle flip the DOM/localStorage
+// state without those charts ever finding out, leaving them stuck on the old theme.
+const { isDark, toggle: toggleTheme } = useTheme()
 
 function isActive(routeName) {
     return route().current(routeName)
@@ -66,6 +60,8 @@ function getInitials(name) {
 const showCatatModal = ref(false)
 const existingId = ref(null)
 const loadingContext = ref(false)
+const contextError = ref('')
+const lastRequestedId = ref(null)
 const catatForm = useForm({
     bulan: '',
     emas_gram: '',
@@ -103,13 +99,16 @@ async function fetchHargaEmas() {
 }
 
 async function openCatat(id = null) {
+    lastRequestedId.value = id
     showCatatModal.value = true
     loadingContext.value = true
+    contextError.value = ''
     errorHarga.value = ''
     hargaFetched.value = null
     catatForm.clearErrors()
     try {
         const res = await fetch(id ? route('catat.context', { id }) : route('catat.context'))
+        if (!res.ok) throw new Error('catat-context request failed')
         const data = await res.json()
         const p = data.existing
 
@@ -122,9 +121,15 @@ async function openCatat(id = null) {
         catatForm.reksa_dana   = p ? p.reksa_dana : 0
         catatForm.sbn          = p ? p.sbn : 0
         catatForm.catatan      = p ? (p.catatan ?? '') : ''
+    } catch {
+        contextError.value = 'Gagal memuat data. Coba lagi.'
     } finally {
         loadingContext.value = false
     }
+}
+
+function retryOpenCatat() {
+    openCatat(lastRequestedId.value)
 }
 
 function closeCatat() {
@@ -385,6 +390,15 @@ defineExpose({ openCatat })
 
                         <div v-if="loadingContext" class="flex items-center justify-center py-10">
                             <Loader2 :size="24" class="animate-spin text-zinc-400"/>
+                        </div>
+
+                        <div v-else-if="contextError" class="flex flex-col items-center gap-3 py-10 text-center">
+                            <AlertTriangle :size="24" class="text-red-500"/>
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ contextError }}</p>
+                            <button type="button" @click="retryOpenCatat"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                Coba lagi
+                            </button>
                         </div>
 
                         <form v-else @submit.prevent="submitCatat" class="space-y-3">

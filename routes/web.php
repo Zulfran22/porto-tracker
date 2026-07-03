@@ -1,15 +1,14 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CustomCategoryController;
+use App\Http\Controllers\GoldPriceController;
+use App\Http\Controllers\KontrakCicilanController;
 use App\Http\Controllers\PortofolioController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\RecurringTransactionController;
-use App\Http\Controllers\CustomCategoryController;
-use App\Http\Controllers\KontrakCicilanController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Http;
-use Inertia\Inertia;
 
 // Redirect root ke dashboard
 Route::get('/', function () {
@@ -22,20 +21,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [PortofolioController::class, 'index'])->name('dashboard');
 
     // Catat
-    Route::get('/catat', function () {
-        $last = \App\Models\Portofolio::where('user_id', auth()->id())
-            ->orderBy('bulan', 'desc')->first();
-
-        $aktifKontrak = \App\Models\KontrakCicilanEmas::where('user_id', auth()->id())
-            ->where('status', 'aktif')
-            ->orderBy('tanggal_mulai', 'desc')
-            ->first();
-
-        return Inertia::render('Catat', [
-            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
-            'aktifKontrak'  => $aktifKontrak,
-        ]);
-    })->name('portofolio.create');
+    Route::get('/catat', [PortofolioController::class, 'create'])->name('portofolio.create');
 
     // Portofolio CRUD
     Route::get('/api/catat-context', [PortofolioController::class, 'catatContext'])->name('catat.context');
@@ -50,24 +36,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/kontrak-cicilan/{kontrak}', [KontrakCicilanController::class, 'destroy'])->name('kontrak-cicilan.destroy');
 
     // Grafik
-    Route::get('/grafik', function () {
-        $data = \App\Models\Portofolio::where('user_id', auth()->id())->orderBy('bulan')->get();
-        return Inertia::render('Grafik', [
-            'portofolios'  => $data,
-            'aktifKontrak' => \App\Models\KontrakCicilanEmas::aktifUntuk(auth()->id()),
-        ]);
-    })->name('grafik');
+    Route::get('/grafik', [PortofolioController::class, 'grafik'])->name('grafik');
 
     // Info
-    Route::get('/info', function () {
-        $last = \App\Models\Portofolio::where('user_id', auth()->id())
-            ->orderBy('bulan', 'desc')->first();
-        return Inertia::render('Info', [
-            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
-            'lastCicilan'   => $last ? (int) $last->cicilan : null,
-            'aktifKontrak'  => \App\Models\KontrakCicilanEmas::aktifUntuk(auth()->id()),
-        ]);
-    })->name('info');
+    Route::get('/info', [PortofolioController::class, 'info'])->name('info');
 
     // Target
     Route::get('/target', [TargetController::class, 'index'])->name('target');
@@ -91,33 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/keuangan/kategori/{category}', [CustomCategoryController::class, 'destroy'])->name('kategori.destroy');
 
     // Proxy harga emas
-    Route::get('/api/harga-emas', function () {
-        try {
-            $kurs = Http::timeout(5)->get('https://api.frankfurter.app/latest?from=USD&to=IDR');
-            $usdToIdr = $kurs->json()['rates']['IDR'];
-
-            $xau = Http::timeout(5)->withHeaders(['User-Agent' => 'Mozilla/5.0'])
-                ->get('https://data-asg.goldprice.org/dbXRates/USD');
-            $xauUsd = $xau->json()['items'][0]['xauPrice'] ?? config('gold.fallback_xau_price');
-
-            $markup     = config('gold.pegadaian_markup');
-            $perGramUsd = $xauUsd / 31.1035;
-            $perGramIdr = round($perGramUsd * $usdToIdr);
-            $pegadaian  = round($perGramIdr * $markup);
-
-            return response()->json([
-                'success'        => true,
-                'xau_usd'        => round($xauUsd, 2),
-                'usd_idr'        => round($usdToIdr),
-                'spot_idr'       => $perGramIdr,
-                'pegadaian'      => $pegadaian,
-                'markup_percent' => round(($markup - 1) * 100),
-            ]);
-        } catch (\Exception $e) {
-            report($e);
-            return response()->json(['success' => false, 'message' => 'Gagal mengambil harga emas terbaru.'], 502);
-        }
-    })->middleware('throttle:30,1');
+    Route::get('/api/harga-emas', [GoldPriceController::class, 'index'])->middleware('throttle:30,1');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

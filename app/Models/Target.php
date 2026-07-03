@@ -15,9 +15,9 @@ class Target extends Model
     ];
 
     protected $casts = [
-        'target_emas'    => 'float',
+        'target_emas' => 'float',
         'target_darurat' => 'integer',
-        'target_reksa'   => 'integer',
+        'target_reksa' => 'integer',
     ];
 
     public function user(): BelongsTo

@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Portofolio extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'user_id',
         'bulan',
@@ -42,7 +45,7 @@ class Portofolio extends Model
     // Hitung total nilai portofolio
     public function getTotalAttribute(): int
     {
-        if (!array_key_exists($this->user_id, static::$kontrakAktifCache)) {
+        if (! array_key_exists($this->user_id, static::$kontrakAktifCache)) {
             static::$kontrakAktifCache[$this->user_id] = KontrakCicilanEmas::aktifUntuk($this->user_id);
         }
         $kontrakAktif = static::$kontrakAktifCache[$this->user_id];
@@ -52,7 +55,7 @@ class Portofolio extends Model
             : config('finance.cicilan_gram_fallback');
 
         $nilaiEmasTunai = $this->emas_gram * $this->harga_emas;
-        $nilaiCicilan   = $gramCicilan * $this->harga_emas;
+        $nilaiCicilan = $gramCicilan * $this->harga_emas;
 
         return $nilaiEmasTunai + $nilaiCicilan +
                $this->dana_darurat + $this->reksa_dana + $this->sbn;

@@ -17,14 +17,14 @@ class CatatKontrakDefaultTest extends TestCase
         $user = User::factory()->create();
 
         $kontrak = KontrakCicilanEmas::create([
-            'user_id'         => $user->id,
-            'nomor_kontrak'   => '17805391142154415301',
-            'tanggal_mulai'   => '2026-06-04',
+            'user_id' => $user->id,
+            'nomor_kontrak' => '17805391142154415301',
+            'tanggal_mulai' => '2026-06-04',
             'tanggal_selesai' => '2027-06-04',
-            'tenor_bulan'     => 12,
-            'total_gram'      => 5,
-            'angsuran_bulan'  => 1032662,
-            'status'          => 'aktif',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'status' => 'aktif',
         ]);
 
         $this->actingAs($user)

@@ -2,22 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CustomCategoryRequest;
 use App\Models\CustomCategory;
-use Illuminate\Http\Request;
 
 class CustomCategoryController extends Controller
 {
-    public function store(Request $request)
+    public function store(CustomCategoryRequest $request)
     {
-        $request->validate([
-            'type' => 'required|in:income,expense',
-            'name' => 'required|string|max:50',
-        ]);
-
         CustomCategory::firstOrCreate([
             'user_id' => auth()->id(),
-            'type'    => $request->type,
-            'name'    => $request->name,
+            'type' => $request->type,
+            'name' => $request->name,
         ]);
 
         return back()->with('success', 'Kategori ditambahkan!');
@@ -25,8 +20,9 @@ class CustomCategoryController extends Controller
 
     public function destroy(CustomCategory $category)
     {
-        abort_if($category->user_id !== auth()->id(), 403);
+        $this->authorize('delete', $category);
         $category->delete();
+
         return back()->with('success', 'Kategori dihapus!');
     }
 }

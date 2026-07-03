@@ -10,18 +10,18 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('transactions', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        $table->date('tanggal');
-        $table->enum('type', ['income', 'expense']);
-        $table->string('kategori');
-        $table->bigInteger('jumlah');
-        $table->string('catatan')->nullable();
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('transactions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->date('tanggal');
+            $table->enum('type', ['income', 'expense']);
+            $table->string('kategori');
+            $table->bigInteger('jumlah');
+            $table->string('catatan')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

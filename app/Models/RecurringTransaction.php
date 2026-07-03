@@ -11,7 +11,7 @@ class RecurringTransaction extends Model
 
     protected $casts = [
         'jumlah' => 'integer',
-        'aktif'  => 'boolean',
+        'aktif' => 'boolean',
     ];
 
     public function user(): BelongsTo
