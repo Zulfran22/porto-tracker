@@ -89,6 +89,10 @@ const isLate       = computed(() => todayDate > dueDateDay.value && todayDate <=
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
 const bepPct   = computed(() => Math.min(100, Math.round(hargaNow.value / bepTarget.value * 100)))
 
+// Ref ke AuthenticatedLayout — dipakai buat memicu modal "Catat" (dalam mode
+// edit) dari tombol pensil di riwayat, karena modal sekarang tinggal di layout.
+const layoutRef = ref(null)
+
 // Delete modal
 const deleteTarget = ref(null)
 const confirmHapus = (item) => { deleteTarget.value = item }
@@ -110,10 +114,11 @@ const exportPortofolio = () => {
         ])
     )
 }
+
 </script>
 
 <template>
-    <AuthenticatedLayout>
+    <AuthenticatedLayout ref="layoutRef">
         <div class="max-w-lg mx-auto lg:max-w-3xl px-4 py-5 lg:py-8 space-y-3">
 
             <!-- REMINDER -->
@@ -446,10 +451,10 @@ const exportPortofolio = () => {
                                     <span class="font-semibold text-zinc-900 dark:text-white">{{ item.bulan }}</span>
                                     <div class="flex items-center gap-2">
     <span class="text-yellow-500 dark:text-yellow-400 font-semibold text-sm">{{ fmtJt(item.total) }}</span>
-    <a :href="route('portofolio.edit', item.id)"
+    <button @click="layoutRef?.openCatat(item.id)"
         class="p-1.5 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors">
         <Pencil :size="13"/>
-    </a>
+    </button>
     <button @click="confirmHapus(item)"
         class="p-1.5 rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
         <Trash2 :size="13"/>

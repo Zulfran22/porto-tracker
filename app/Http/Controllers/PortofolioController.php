@@ -34,6 +34,31 @@ class PortofolioController extends Controller
         ]);
     }
 
+    // Data buat modal "Catat" di FAB — dipanggil dari halaman mana pun karena
+    // AuthenticatedLayout tidak menerima portofolios/aktifKontrak lewat props Inertia.
+    // Kalau ?id= dikirim, modal dipakai untuk edit data bulan lain (bukan bulan berjalan).
+    public function catatContext(Request $request)
+    {
+        $userId = auth()->id();
+
+        if ($request->filled('id')) {
+            $existing = Portofolio::where('user_id', $userId)->findOrFail($request->id);
+            $bulan = $existing->bulan;
+        } else {
+            $bulan    = now()->format('Y-m');
+            $existing = Portofolio::where('user_id', $userId)->where('bulan', $bulan)->first();
+        }
+
+        $last = Portofolio::where('user_id', $userId)->orderBy('bulan', 'desc')->first();
+
+        return response()->json([
+            'bulan'         => $bulan,
+            'existing'      => $existing,
+            'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'aktifKontrak'  => KontrakCicilanEmas::aktifUntuk($userId),
+        ]);
+    }
+
     // Simpan data baru / update bulan yang sama
     public function store(Request $request)
     {
@@ -80,17 +105,7 @@ class PortofolioController extends Controller
             ->with('success', 'Data berhasil dihapus!');
     }
 
-    // Edit — ambil data untuk diedit
-public function edit(Portofolio $portofolio)
-{
-    abort_if($portofolio->user_id !== auth()->id(), 403);
-
-    return Inertia::render('Edit', [
-        'portofolio' => $portofolio,
-    ]);
-}
-
-// Update — simpan perubahan
+    // Update — simpan perubahan
 public function update(Request $request, Portofolio $portofolio)
 {
     abort_if($portofolio->user_id !== auth()->id(), 403);

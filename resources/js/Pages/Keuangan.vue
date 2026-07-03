@@ -67,10 +67,13 @@ function switchType(type) {
     form.kategori = type === 'income' ? 'Gaji' : 'Makan'
 }
 
+const showQuickAdd = ref(false)
+
 const submit = () => {
     form.post(route('keuangan.store'), {
         onSuccess: () => {
             form.reset('jumlah', 'catatan')
+            showQuickAdd.value = false
         },
     })
 }
@@ -377,70 +380,11 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
                 {{ $page.props.flash.success }}
             </div>
 
-            <!-- QUICK ADD -->
-            <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <CardContent class="px-4 pt-4 pb-4">
-
-                    <!-- TOGGLE -->
-                    <div class="flex bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 mb-3">
-                        <button type="button" @click="switchType('expense')"
-                            class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors"
-                            :class="activeType === 'expense'
-                                ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
-                                : 'text-zinc-500'">
-                            <ArrowDownCircle :size="14"/> Pengeluaran
-                        </button>
-                        <button type="button" @click="switchType('income')"
-                            class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors"
-                            :class="activeType === 'income'
-                                ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                                : 'text-zinc-500'">
-                            <ArrowUpCircle :size="14"/> Pemasukan
-                        </button>
-                    </div>
-
-                    <form @submit.prevent="submit" class="space-y-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <Calendar :size="12" class="text-zinc-400"/> Tanggal
-                                </label>
-                                <input type="date" v-model="form.tanggal" :class="inputClass"/>
-                            </div>
-                            <div>
-                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <Tag :size="12" class="text-zinc-400"/> Kategori
-                                </label>
-                                <select v-model="form.kategori" :class="inputClass">
-                                    <option v-for="k in currentKategoriList" :key="k" :value="k">{{ k }}</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <Wallet :size="12" class="text-zinc-400"/> Jumlah (Rp)
-                            </label>
-                            <input type="number" v-model="form.jumlah" placeholder="mis. 25000" :class="inputClass"/>
-                            <p v-if="form.errors.jumlah" class="text-xs text-red-500 mt-1">{{ form.errors.jumlah }}</p>
-                        </div>
-
-                        <div>
-                            <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <StickyNote :size="12" class="text-zinc-400"/> Catatan (opsional)
-                            </label>
-                            <input type="text" v-model="form.catatan" placeholder="mis. makan siang kantor" :class="inputClass"/>
-                        </div>
-
-                        <button type="submit" :disabled="form.processing"
-                            class="w-full font-semibold py-3 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                            :class="activeType === 'income' ? 'bg-green-500 hover:bg-green-400 text-black' : 'bg-yellow-500 hover:bg-yellow-400 text-black'">
-                            <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
-                            <span>{{ form.processing ? 'Menyimpan...' : (activeType === 'income' ? 'Catat pemasukan' : 'Catat pengeluaran') }}</span>
-                        </button>
-                    </form>
-                </CardContent>
-            </Card>
+            <!-- QUICK ADD TRIGGER -->
+            <button type="button" @click="showQuickAdd = true"
+                class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold bg-yellow-500 hover:bg-yellow-400 text-black transition-colors">
+                <Plus :size="16"/> Catat transaksi harian
+            </button>
 
             <!-- SUMMARY -->
             <div class="grid grid-cols-2 gap-2">
@@ -833,4 +777,92 @@ const inputClass = "w-full bg-white dark:bg-zinc-800 border border-zinc-300 dark
 
         </div>
     </AuthenticatedLayout>
+
+    <!-- QUICK ADD BOTTOM SHEET -->
+    <Teleport to="body">
+        <Transition enter-active-class="transition" enter-from-class="opacity-0" leave-active-class="transition" leave-to-class="opacity-0">
+            <div v-if="showQuickAdd" class="fixed inset-0 z-50 flex items-end justify-center" @click.self="showQuickAdd = false">
+                <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"/>
+                <Transition
+                    enter-active-class="transition duration-300 ease-out"
+                    enter-from-class="translate-y-full"
+                    enter-to-class="translate-y-0"
+                    leave-active-class="transition duration-200 ease-in"
+                    leave-from-class="translate-y-0"
+                    leave-to-class="translate-y-full"
+                    appear>
+                    <div v-if="showQuickAdd" class="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-x border-zinc-200 dark:border-zinc-800 px-4 pt-3 pb-6">
+                        <div class="w-10 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 mx-auto mb-3"/>
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-sm font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5">
+                                <Wallet :size="14"/> Catat transaksi harian
+                            </p>
+                            <button @click="showQuickAdd = false" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors shrink-0">
+                                <X :size="18"/>
+                            </button>
+                        </div>
+
+                        <!-- TOGGLE -->
+                        <div class="flex bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 mb-3">
+                            <button type="button" @click="switchType('expense')"
+                                class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors"
+                                :class="activeType === 'expense'
+                                    ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                                    : 'text-zinc-500'">
+                                <ArrowDownCircle :size="14"/> Pengeluaran
+                            </button>
+                            <button type="button" @click="switchType('income')"
+                                class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-colors"
+                                :class="activeType === 'income'
+                                    ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                                    : 'text-zinc-500'">
+                                <ArrowUpCircle :size="14"/> Pemasukan
+                            </button>
+                        </div>
+
+                        <form @submit.prevent="submit" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                        <Calendar :size="12" class="text-zinc-400"/> Tanggal
+                                    </label>
+                                    <input type="date" v-model="form.tanggal" :class="inputClass"/>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                        <Tag :size="12" class="text-zinc-400"/> Kategori
+                                    </label>
+                                    <select v-model="form.kategori" :class="inputClass">
+                                        <option v-for="k in currentKategoriList" :key="k" :value="k">{{ k }}</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                    <Wallet :size="12" class="text-zinc-400"/> Jumlah (Rp)
+                                </label>
+                                <input type="number" v-model="form.jumlah" placeholder="mis. 25000" :class="inputClass"/>
+                                <p v-if="form.errors.jumlah" class="text-xs text-red-500 mt-1">{{ form.errors.jumlah }}</p>
+                            </div>
+
+                            <div>
+                                <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
+                                    <StickyNote :size="12" class="text-zinc-400"/> Catatan (opsional)
+                                </label>
+                                <input type="text" v-model="form.catatan" placeholder="mis. makan siang kantor" :class="inputClass"/>
+                            </div>
+
+                            <button type="submit" :disabled="form.processing"
+                                class="w-full font-semibold py-3 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                                :class="activeType === 'income' ? 'bg-green-500 hover:bg-green-400 text-black' : 'bg-yellow-500 hover:bg-yellow-400 text-black'">
+                                <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
+                                <span>{{ form.processing ? 'Menyimpan...' : (activeType === 'income' ? 'Catat pemasukan' : 'Catat pengeluaran') }}</span>
+                            </button>
+                        </form>
+                    </div>
+                </Transition>
+            </div>
+        </Transition>
+    </Teleport>
 </template>

@@ -38,8 +38,8 @@ Route::middleware('auth')->group(function () {
     })->name('portofolio.create');
 
     // Portofolio CRUD
+    Route::get('/api/catat-context', [PortofolioController::class, 'catatContext'])->name('catat.context');
     Route::post('/portofolio', [PortofolioController::class, 'store'])->name('portofolio.store');
-    Route::get('/portofolio/{portofolio}/edit', [PortofolioController::class, 'edit'])->name('portofolio.edit');
     Route::put('/portofolio/{portofolio}', [PortofolioController::class, 'update'])->name('portofolio.update');
     Route::delete('/portofolio/{portofolio}', [PortofolioController::class, 'destroy'])->name('portofolio.destroy');
 
