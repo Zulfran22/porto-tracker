@@ -35,18 +35,18 @@ const isActive = (item) => {
 
                         <div class="w-9 h-8 flex items-center justify-center rounded-xl transition-all duration-200"
                              :class="isActive(item)
-                                ? 'bg-yellow-400/15'
+                                ? 'bg-indigo-500/10'
                                 : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
                             <component
                                 :is="item.icon"
                                 :size="19"
                                 :stroke-width="isActive(item) ? 2.5 : 1.8"
-                                :class="isActive(item) ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'"
+                                :class="isActive(item) ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'"
                                 class="transition-colors duration-200"/>
                         </div>
 
                         <span class="text-[9.5px] font-medium leading-none tracking-wide transition-colors duration-200"
-                              :class="isActive(item) ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'">
+                              :class="isActive(item) ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'">
                             {{ item.name }}
                         </span>
 

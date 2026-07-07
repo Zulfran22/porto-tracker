@@ -57,8 +57,8 @@ const submit = () => {
                                border-zinc-300 dark:border-zinc-700
                                text-zinc-900 dark:text-zinc-100
                                placeholder-zinc-400 dark:placeholder-zinc-500
-                               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400
-                               dark:focus:ring-yellow-500 dark:focus:border-yellow-500"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+                               dark:focus:ring-indigo-500 dark:focus:border-indigo-500"
                         :class="{ 'border-red-400 dark:border-red-500 focus:ring-red-400': form.errors.email }"
                     />
                 </div>
@@ -72,7 +72,7 @@ const submit = () => {
                     <Link
                         v-if="canResetPassword"
                         :href="route('password.request')"
-                        class="text-xs text-yellow-600 dark:text-yellow-400 hover:underline"
+                        class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
                     >Lupa password?</Link>
                 </div>
                 <div class="relative">
@@ -89,8 +89,8 @@ const submit = () => {
                                border-zinc-300 dark:border-zinc-700
                                text-zinc-900 dark:text-zinc-100
                                placeholder-zinc-400 dark:placeholder-zinc-500
-                               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400
-                               dark:focus:ring-yellow-500 dark:focus:border-yellow-500"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+                               dark:focus:ring-indigo-500 dark:focus:border-indigo-500"
                         :class="{ 'border-red-400 dark:border-red-500 focus:ring-red-400': form.errors.password }"
                     />
                     <button
@@ -111,7 +111,7 @@ const submit = () => {
                 <input
                     type="checkbox"
                     v-model="form.remember"
-                    class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-yellow-500 focus:ring-yellow-400 focus:ring-2 cursor-pointer"
+                    class="w-4 h-4 rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-indigo-500 focus:ring-indigo-400 focus:ring-2 cursor-pointer"
                 />
                 <span class="text-sm text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200 transition-colors">Ingat saya</span>
             </label>
@@ -121,8 +121,8 @@ const submit = () => {
                 type="submit"
                 :disabled="form.processing"
                 class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm
-                       bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600
-                       text-black transition-colors shadow-md shadow-yellow-500/20
+                       bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600
+                       text-white transition-colors shadow-md shadow-indigo-500/20
                        disabled:opacity-60 disabled:cursor-not-allowed"
             >
                 <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
@@ -133,7 +133,7 @@ const submit = () => {
 
         <p class="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
             Belum punya akun?
-            <Link :href="route('register')" class="text-yellow-600 dark:text-yellow-400 font-medium hover:underline ml-1">Daftar sekarang</Link>
+            <Link :href="route('register')" class="text-indigo-600 dark:text-indigo-400 font-medium hover:underline ml-1">Daftar sekarang</Link>
         </p>
     </GuestLayout>
 </template>

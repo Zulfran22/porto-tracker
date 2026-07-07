@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PortofolioRequest;
+use App\Models\InvestmentType;
 use App\Models\KontrakCicilanEmas;
 use App\Models\Portofolio;
+use App\Models\Target;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +17,9 @@ class PortofolioController extends Controller
     // Halaman dashboard
     public function index()
     {
-        $data = Portofolio::where('user_id', auth()->id())
+        InvestmentType::ensureDefaultsFor(auth()->id());
+
+        $data = Portofolio::with('items')->where('user_id', auth()->id())
             ->orderBy('bulan', 'asc')
             ->get();
 
@@ -26,7 +30,9 @@ class PortofolioController extends Controller
 
         return Inertia::render('Dashboard', [
             'portofolios' => $data,
+            'investmentTypes' => InvestmentType::where('user_id', auth()->id())->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
+            'budgetBulanan' => Target::budgetBulananUntuk(auth()->id()),
             'cashflow' => [
                 'income' => $cashflow->where('type', 'income')->sum('jumlah'),
                 'expense' => $cashflow->where('type', 'expense')->sum('jumlah'),
@@ -39,11 +45,14 @@ class PortofolioController extends Controller
     // Halaman /catat (form penuh, terpisah dari modal cepat di FAB)
     public function create()
     {
+        InvestmentType::ensureDefaultsFor(auth()->id());
+
         $last = Portofolio::where('user_id', auth()->id())
             ->orderBy('bulan', 'desc')->first();
 
         return Inertia::render('Catat', [
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'investmentTypes' => InvestmentType::where('user_id', auth()->id())->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
     }
@@ -51,10 +60,11 @@ class PortofolioController extends Controller
     // Halaman /grafik
     public function grafik()
     {
-        $data = Portofolio::where('user_id', auth()->id())->orderBy('bulan')->get();
+        $data = Portofolio::with('items')->where('user_id', auth()->id())->orderBy('bulan')->get();
 
         return Inertia::render('Grafik', [
             'portofolios' => $data,
+            'investmentTypes' => InvestmentType::where('user_id', auth()->id())->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
     }
@@ -68,7 +78,10 @@ class PortofolioController extends Controller
         return Inertia::render('Info', [
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
             'lastCicilan' => $last ? (int) $last->cicilan : null,
+            'investmentTypes' => InvestmentType::where('user_id', auth()->id())
+                ->where('unit', 'rupiah')->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
+            'budgetBulanan' => Target::budgetBulananUntuk(auth()->id()),
         ]);
     }
 
@@ -80,11 +93,11 @@ class PortofolioController extends Controller
         $userId = auth()->id();
 
         if ($request->filled('id')) {
-            $existing = Portofolio::where('user_id', $userId)->findOrFail($request->id);
+            $existing = Portofolio::with('items')->where('user_id', $userId)->findOrFail($request->id);
             $bulan = $existing->bulan;
         } else {
             $bulan = now()->format('Y-m');
-            $existing = Portofolio::where('user_id', $userId)->where('bulan', $bulan)->first();
+            $existing = Portofolio::with('items')->where('user_id', $userId)->where('bulan', $bulan)->first();
         }
 
         $last = Portofolio::where('user_id', $userId)->orderBy('bulan', 'desc')->first();
@@ -93,6 +106,7 @@ class PortofolioController extends Controller
             'bulan' => $bulan,
             'existing' => $existing,
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'investmentTypes' => InvestmentType::where('user_id', $userId)->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk($userId),
         ]);
     }
@@ -109,12 +123,8 @@ class PortofolioController extends Controller
                 ->first();
 
             $attributes = [
-                'emas_gram' => $request->emas_gram,
                 'harga_emas' => $request->harga_emas,
                 'cicilan' => $request->cicilan,
-                'dana_darurat' => $request->dana_darurat ?? 0,
-                'reksa_dana' => $request->reksa_dana ?? 0,
-                'sbn' => $request->sbn ?? 0,
                 'catatan' => $request->catatan,
             ];
 
@@ -124,12 +134,14 @@ class PortofolioController extends Controller
                 }
                 $portofolio->update($attributes);
             } else {
-                Portofolio::create([
+                $portofolio = Portofolio::create([
                     'user_id' => auth()->id(),
                     'bulan' => $request->bulan,
                     ...$attributes,
                 ]);
             }
+
+            $this->syncItems($portofolio, $request->input('items', []));
         });
 
         return redirect()->route('dashboard')
@@ -151,18 +163,35 @@ class PortofolioController extends Controller
     {
         $this->authorize('update', $portofolio);
 
-        $portofolio->update([
-            'bulan' => $request->bulan,
-            'emas_gram' => $request->emas_gram,
-            'harga_emas' => $request->harga_emas,
-            'cicilan' => $request->cicilan,
-            'dana_darurat' => $request->dana_darurat ?? 0,
-            'reksa_dana' => $request->reksa_dana ?? 0,
-            'sbn' => $request->sbn ?? 0,
-            'catatan' => $request->catatan,
-        ]);
+        DB::transaction(function () use ($request, $portofolio) {
+            $portofolio->update([
+                'bulan' => $request->bulan,
+                'harga_emas' => $request->harga_emas,
+                'cicilan' => $request->cicilan,
+                'catatan' => $request->catatan,
+            ]);
+
+            $this->syncItems($portofolio, $request->input('items', []));
+        });
 
         return redirect()->route('dashboard')
             ->with('success', 'Data berhasil diupdate!');
+    }
+
+    // Full delete-then-recreate per save — jumlah item per bulan kecil (satu
+    // per jenis investasi), jadi diff/upsert per baris tidak sepadan
+    // kompleksitasnya. Ini juga otomatis membuang item yang dihapus user dari form.
+    private function syncItems(Portofolio $portofolio, array $items): void
+    {
+        $portofolio->items()->delete();
+
+        foreach ($items as $item) {
+            $portofolio->items()->create([
+                'type_name' => $item['type_name'],
+                'unit' => $item['unit'],
+                'gram' => $item['unit'] === 'gram' ? ($item['gram'] ?? 0) : null,
+                'jumlah' => $item['unit'] === 'rupiah' ? ($item['jumlah'] ?? 0) : null,
+            ]);
+        }
     }
 }

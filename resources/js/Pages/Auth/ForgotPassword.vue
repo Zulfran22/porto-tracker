@@ -50,8 +50,8 @@ const submit = () => {
                                border-zinc-300 dark:border-zinc-700
                                text-zinc-900 dark:text-zinc-100
                                placeholder-zinc-400 dark:placeholder-zinc-500
-                               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400
-                               dark:focus:ring-yellow-500 dark:focus:border-yellow-500"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400
+                               dark:focus:ring-indigo-500 dark:focus:border-indigo-500"
                         :class="{ 'border-red-400 dark:border-red-500': form.errors.email }"
                     />
                 </div>
@@ -62,8 +62,8 @@ const submit = () => {
                 type="submit"
                 :disabled="form.processing"
                 class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm
-                       bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600
-                       text-black transition-colors shadow-md shadow-yellow-500/20
+                       bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600
+                       text-white transition-colors shadow-md shadow-indigo-500/20
                        disabled:opacity-60 disabled:cursor-not-allowed"
             >
                 <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
@@ -73,7 +73,7 @@ const submit = () => {
         </form>
 
         <div class="mt-6 text-center">
-            <Link :href="route('login')" class="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors">
+            <Link :href="route('login')" class="inline-flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                 <ArrowLeft :size="14"/> Kembali ke halaman masuk
             </Link>
         </div>

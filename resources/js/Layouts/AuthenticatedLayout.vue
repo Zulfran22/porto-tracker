@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { Link, usePage, useForm } from '@inertiajs/vue3'
+import { ref, computed, onBeforeUnmount } from 'vue'
+import { Link, usePage, useForm, router } from '@inertiajs/vue3'
 import {
     LayoutDashboard,
     ChartNoAxesColumn,
@@ -15,12 +15,7 @@ import {
     ChevronDown,
     User,
     Lock,
-    Coins,
-    Shield,
-    TrendingUp,
-    Landmark,
     StickyNote,
-    Globe,
     Loader2,
     AlertTriangle,
     Calendar,
@@ -34,7 +29,8 @@ import {
     DropdownMenuSeparator
 } from '@/Components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
-import { Separator } from '@/Components/ui/separator'
+import PageSkeleton from '@/Components/PageSkeleton.vue'
+import PortfolioItemFields from '@/Components/PortfolioItemFields.vue'
 import { useTheme } from '@/Composables/useTheme'
 import { inputClass } from '@/Composables/useFormStyles'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
@@ -47,6 +43,17 @@ const user = computed(() => page.props.auth.user)
 // A separate local isDark here previously let the toggle flip the DOM/localStorage
 // state without those charts ever finding out, leaving them stuck on the old theme.
 const { isDark, toggle: toggleTheme } = useTheme()
+
+// Skeleton loading saat pindah halaman (klik Link di nav) — dibedakan dari
+// visit non-GET (submitBudget, hapus, dsb.) yang pakai preserveScroll supaya
+// aksi CRUD kecil tidak ikut memicu skeleton full-page.
+const isNavigating = ref(false)
+const offNavStart = router.on('start', (event) => {
+    const visit = event.detail.visit
+    if (visit.method === 'get' && !visit.only?.length) isNavigating.value = true
+})
+const offNavFinish = router.on('finish', () => { isNavigating.value = false })
+onBeforeUnmount(() => { offNavStart(); offNavFinish() })
 
 function isActive(routeName) {
     return route().current(routeName)
@@ -64,40 +71,28 @@ const existingId = ref(null)
 const loadingContext = ref(false)
 const contextError = ref('')
 const lastRequestedId = ref(null)
+const modalInvestmentTypes = ref([])
+const modalLastHargaEmas = ref(null)
+const modalAktifKontrak = ref(null)
 const catatForm = useForm({
     bulan: '',
-    emas_gram: '',
     harga_emas: '',
     cicilan: '',
-    dana_darurat: 0,
-    reksa_dana: 0,
-    sbn: 0,
     catatan: '',
+    items: [],
 })
 
-const loadingHarga = ref(false)
-const errorHarga   = ref('')
-const hargaFetched = ref(null)
-
-async function fetchHargaEmas() {
-    loadingHarga.value = true
-    errorHarga.value   = ''
-    hargaFetched.value = null
-    try {
-        const res  = await fetch('/api/harga-emas')
-        const data = await res.json()
-        if (!data.success) throw new Error(data.message)
-        hargaFetched.value = {
-            spotIdr:       data.spot_idr.toLocaleString('id-ID'),
-            pegadaian:     data.pegadaian,
-            markupPercent: data.markup_percent,
+function itemsFromTypes(types, existingItems) {
+    const byName = Object.fromEntries((existingItems ?? []).map(i => [i.type_name, i]))
+    return types.map(t => {
+        const existing = byName[t.name]
+        return {
+            type_name: t.name,
+            unit: t.unit,
+            gram: t.unit === 'gram' ? (existing ? Number(existing.gram) : '') : null,
+            jumlah: t.unit === 'rupiah' ? (existing ? Number(existing.jumlah) : 0) : null,
         }
-        catatForm.harga_emas = data.pegadaian
-    } catch {
-        errorHarga.value = 'Gagal ambil harga — isi manual.'
-    } finally {
-        loadingHarga.value = false
-    }
+    })
 }
 
 async function openCatat(id = null) {
@@ -105,8 +100,6 @@ async function openCatat(id = null) {
     showCatatModal.value = true
     loadingContext.value = true
     contextError.value = ''
-    errorHarga.value = ''
-    hargaFetched.value = null
     catatForm.clearErrors()
     try {
         const res = await fetch(id ? route('catat.context', { id }) : route('catat.context'))
@@ -114,15 +107,16 @@ async function openCatat(id = null) {
         const data = await res.json()
         const p = data.existing
 
-        existingId.value       = p ? p.id : null
-        catatForm.bulan        = data.bulan
-        catatForm.emas_gram    = p ? p.emas_gram : ''
-        catatForm.harga_emas   = p ? p.harga_emas : (data.lastHargaEmas ?? '')
-        catatForm.cicilan      = p ? p.cicilan : (data.aktifKontrak ? Number(data.aktifKontrak.angsuran_bulan) : '')
-        catatForm.dana_darurat = p ? p.dana_darurat : 0
-        catatForm.reksa_dana   = p ? p.reksa_dana : 0
-        catatForm.sbn          = p ? p.sbn : 0
-        catatForm.catatan      = p ? (p.catatan ?? '') : ''
+        existingId.value = p ? p.id : null
+        modalInvestmentTypes.value = data.investmentTypes ?? []
+        modalLastHargaEmas.value = data.lastHargaEmas ?? null
+        modalAktifKontrak.value = data.aktifKontrak ?? null
+
+        catatForm.bulan      = data.bulan
+        catatForm.harga_emas = p ? p.harga_emas : (data.lastHargaEmas ?? '')
+        catatForm.cicilan    = p ? p.cicilan : (data.aktifKontrak ? Number(data.aktifKontrak.angsuran_bulan) : '')
+        catatForm.catatan    = p ? (p.catatan ?? '') : ''
+        catatForm.items      = itemsFromTypes(modalInvestmentTypes.value, p?.items)
     } catch {
         contextError.value = 'Gagal memuat data. Coba lagi.'
     } finally {
@@ -159,7 +153,7 @@ defineExpose({ openCatat })
         <header class="lg:hidden sticky top-0 z-40 w-full border-b border-zinc-200 dark:border-zinc-800/60 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md">
             <div class="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
                 <Link href="/dashboard" class="flex items-center gap-2.5">
-                    <img src="/icons/icon.svg" alt="WealthID" class="w-8 h-8 rounded-xl shadow-lg shadow-yellow-500/20">
+                    <img src="/icons/icon.png" alt="WealthID" class="w-8 h-8 rounded-xl shadow-lg shadow-indigo-500/20">
                     <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">WealthID</span>
                 </Link>
                 <div class="flex items-center gap-2">
@@ -172,7 +166,7 @@ defineExpose({ openCatat })
                         <DropdownMenuTrigger class="outline-none">
                             <div class="flex items-center gap-1.5">
                                 <Avatar class="size-8">
-                                    <AvatarFallback class="bg-yellow-500 text-black text-xs font-bold">
+                                    <AvatarFallback class="bg-indigo-500 text-white text-xs font-bold">
                                         {{ getInitials(user?.name) }}
                                     </AvatarFallback>
                                 </Avatar>
@@ -206,7 +200,7 @@ defineExpose({ openCatat })
             <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800">
                 <!-- Logo -->
                 <div class="flex items-center gap-3 px-6 py-5 border-b border-zinc-200 dark:border-zinc-800">
-                    <img src="/icons/icon.svg" alt="WealthID" class="w-9 h-9 rounded-xl shadow-lg shadow-yellow-500/20">
+                    <img src="/icons/icon.png" alt="WealthID" class="w-9 h-9 rounded-xl shadow-lg shadow-indigo-500/20">
                     <div>
                         <p class="font-bold text-zinc-900 dark:text-zinc-100 text-sm">WealthID</p>
                         <p class="text-xs text-zinc-500">Investasi emas & saving</p>
@@ -227,7 +221,7 @@ defineExpose({ openCatat })
                         :href="item.href"
                         class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group"
                         :class="route().current(item.route)
-                            ? 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400'
+                            ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                             : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100'">
                         <LayoutDashboard v-if="item.icon === 'dashboard'" :size="18" stroke-width="2.5" class="shrink-0 transition-colors" />
                         <CirclePlus v-else-if="item.icon === 'catat'" :size="18" stroke-width="1.8" class="shrink-0 transition-colors" />
@@ -256,7 +250,7 @@ defineExpose({ openCatat })
                         <DropdownMenuTrigger class="w-full outline-none">
                             <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
                                 <Avatar class="size-8">
-                                    <AvatarFallback class="bg-yellow-500 text-black text-xs font-bold">
+                                    <AvatarFallback class="bg-indigo-500 text-white text-xs font-bold">
                                         {{ getInitials(user?.name) }}
                                     </AvatarFallback>
                                 </Avatar>
@@ -289,7 +283,8 @@ defineExpose({ openCatat })
             <!-- Main Content -->
             <main class="flex-1 lg:ml-64 pb-24 lg:pb-8">
                 <div class="max-w-lg mx-auto px-4 lg:max-w-3xl lg:py-8">
-                    <slot />
+                    <PageSkeleton v-if="isNavigating"/>
+                    <slot v-else />
                 </div>
             </main>
         </div>
@@ -303,12 +298,12 @@ defineExpose({ openCatat })
                         <!-- Dashboard -->
                         <Link :href="route('dashboard')"
                             class="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all duration-200 group"
-                            :class="route().current('dashboard') ? 'text-yellow-500' : 'text-zinc-400'">
+                            :class="route().current('dashboard') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400'">
                             <div class="w-9 h-8 flex items-center justify-center rounded-xl transition-all"
-                                :class="route().current('dashboard') ? 'bg-yellow-400/15' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
+                                :class="route().current('dashboard') ? 'bg-indigo-500/10' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
                                 <LayoutDashboard :size="19"
                                     :stroke-width="route().current('dashboard') ? 2.5 : 1.8"
-                                    :class="route().current('dashboard') ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
+                                    :class="route().current('dashboard') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
                             </div>
                             <span class="text-xs font-medium">Dashboard</span>
                         </Link>
@@ -316,12 +311,12 @@ defineExpose({ openCatat })
                         <!-- Grafik -->
                         <Link :href="route('grafik')"
                             class="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all duration-200 group"
-                            :class="route().current('grafik') ? 'text-yellow-500' : 'text-zinc-400'">
+                            :class="route().current('grafik') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400'">
                             <div class="w-9 h-8 flex items-center justify-center rounded-xl transition-all"
-                                :class="route().current('grafik') ? 'bg-yellow-400/15' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
+                                :class="route().current('grafik') ? 'bg-indigo-500/10' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
                                 <ChartNoAxesColumn :size="19"
                                     :stroke-width="route().current('grafik') ? 2.5 : 1.8"
-                                    :class="route().current('grafik') ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
+                                    :class="route().current('grafik') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
                             </div>
                             <span class="text-xs font-medium">Grafik</span>
                         </Link>
@@ -329,21 +324,21 @@ defineExpose({ openCatat })
                         <!-- CATAT FAB -->
                         <button @click="openCatat"
                             class="flex flex-col items-center gap-1 px-3 pb-1 rounded-xl transition-all duration-200 group relative">
-                            <div class="w-12 h-10 flex items-center justify-center rounded-2xl bg-yellow-500 shadow-lg shadow-yellow-500/30 -mt-5 transition-transform active:scale-95">
+                            <div class="w-12 h-10 flex items-center justify-center rounded-2xl bg-indigo-500 shadow-lg shadow-indigo-500/30 -mt-5 transition-transform active:scale-95">
                                 <CirclePlus :size="22" stroke-width="2.5" class="text-white" />
                             </div>
-                            <span class="text-xs font-medium text-yellow-500">Catat</span>
+                            <span class="text-xs font-medium text-indigo-500 dark:text-indigo-400">Catat</span>
                         </button>
 
                         <!-- Keuangan -->
                         <Link :href="route('keuangan.index')"
                             class="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all duration-200 group"
-                            :class="route().current('keuangan.index') ? 'text-yellow-500' : 'text-zinc-400'">
+                            :class="route().current('keuangan.index') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400'">
                             <div class="w-9 h-8 flex items-center justify-center rounded-xl transition-all"
-                                :class="route().current('keuangan.index') ? 'bg-yellow-400/15' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
+                                :class="route().current('keuangan.index') ? 'bg-indigo-500/10' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
                                 <Wallet :size="19"
                                     :stroke-width="route().current('keuangan.index') ? 2.5 : 1.8"
-                                    :class="route().current('keuangan.index') ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
+                                    :class="route().current('keuangan.index') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
                             </div>
                             <span class="text-xs font-medium">Keuangan</span>
                         </Link>
@@ -351,12 +346,12 @@ defineExpose({ openCatat })
                         <!-- Target -->
                         <Link :href="route('target')"
                             class="flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all duration-200 group"
-                            :class="route().current('target') ? 'text-yellow-500' : 'text-zinc-400'">
+                            :class="route().current('target') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400'">
                             <div class="w-9 h-8 flex items-center justify-center rounded-xl transition-all"
-                                :class="route().current('target') ? 'bg-yellow-400/15' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
+                                :class="route().current('target') ? 'bg-indigo-500/10' : 'group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'">
                                 <Target :size="19"
                                     :stroke-width="route().current('target') ? 2.5 : 1.8"
-                                    :class="route().current('target') ? 'text-yellow-500 dark:text-yellow-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
+                                    :class="route().current('target') ? 'text-indigo-500 dark:text-indigo-400' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'" />
                             </div>
                             <span class="text-xs font-medium">Target</span>
                         </Link>
@@ -422,64 +417,13 @@ defineExpose({ openCatat })
                                 <p v-if="catatForm.errors.cicilan" class="text-xs text-red-500 mt-1">{{ catatForm.errors.cicilan }}</p>
                             </div>
 
-                            <div>
-                                <label for="catat-emas-gram" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai — total gram dimiliki
-                                </label>
-                                <input id="catat-emas-gram" type="number" step="0.01" v-model="catatForm.emas_gram" placeholder="mis. 0.50" :class="inputClass"/>
-                                <p v-if="catatForm.errors.emas_gram" class="text-xs text-red-500 mt-1">{{ catatForm.errors.emas_gram }}</p>
-                            </div>
-
-                            <div>
-                                <div class="flex justify-between items-center mb-1.5">
-                                    <label for="catat-harga-emas" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                        <Globe :size="12" class="text-zinc-400"/> Harga emas (Rp/gram)
-                                    </label>
-                                    <button type="button" @click="fetchHargaEmas" :disabled="loadingHarga"
-                                        class="text-xs px-3 py-1.5 rounded-lg border border-yellow-400/60 dark:border-yellow-700/50 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/50 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-                                        <Loader2 v-if="loadingHarga" :size="12" class="animate-spin"/>
-                                        <Globe v-else :size="12"/>
-                                        <span>{{ loadingHarga ? 'Mengambil...' : 'Ambil harga' }}</span>
-                                    </button>
-                                </div>
-                                <div v-if="hargaFetched" class="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-yellow-700/20 rounded-xl p-3 mb-2 space-y-1.5">
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-zinc-500">Spot/gram</span>
-                                        <span class="text-zinc-700 dark:text-zinc-300">Rp{{ hargaFetched.spotIdr }}</span>
-                                    </div>
-                                    <Separator class="bg-zinc-200 dark:bg-zinc-700 my-1"/>
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-yellow-600 dark:text-yellow-400 font-medium">Est. Pegadaian (+{{ hargaFetched.markupPercent }}%)</span>
-                                        <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.pegadaian.toLocaleString('id-ID') }}</span>
-                                    </div>
-                                </div>
-                                <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                                    <AlertTriangle :size="12"/> {{ errorHarga }}
-                                </div>
-                                <input id="catat-harga-emas" type="number" v-model="catatForm.harga_emas" placeholder="mis. 2545000" :class="inputClass"/>
-                                <p v-if="catatForm.errors.harga_emas" class="text-xs text-red-500 mt-1">{{ catatForm.errors.harga_emas }}</p>
-                            </div>
-
-                            <div>
-                                <label for="catat-dana-darurat" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat — RDPU (Rp)
-                                </label>
-                                <input id="catat-dana-darurat" type="number" v-model="catatForm.dana_darurat" :class="inputClass"/>
-                            </div>
-
-                            <div>
-                                <label for="catat-reksa-dana" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana (Rp)
-                                </label>
-                                <input id="catat-reksa-dana" type="number" v-model="catatForm.reksa_dana" :class="inputClass"/>
-                            </div>
-
-                            <div>
-                                <label for="catat-sbn" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                    <Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN / Deposito (Rp)
-                                </label>
-                                <input id="catat-sbn" type="number" v-model="catatForm.sbn" :class="inputClass"/>
-                            </div>
+                            <PortfolioItemFields
+                                :items="catatForm.items"
+                                v-model:harga-emas="catatForm.harga_emas"
+                                :last-harga-emas="modalLastHargaEmas"
+                                :harga-emas-error="catatForm.errors.harga_emas"
+                                :aktif-kontrak="modalAktifKontrak"
+                            />
 
                             <div>
                                 <label for="catat-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
@@ -494,7 +438,7 @@ defineExpose({ openCatat })
                                     Batal
                                 </button>
                                 <button type="submit" :disabled="catatForm.processing"
-                                    class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-yellow-500 hover:bg-yellow-400 text-black disabled:opacity-50 transition-colors">
+                                    class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white disabled:opacity-50 transition-colors">
                                     <Loader2 v-if="catatForm.processing" :size="14" class="animate-spin"/>
                                     <span>{{ catatForm.processing ? 'Menyimpan...' : 'Simpan' }}</span>
                                 </button>

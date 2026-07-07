@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
 import { Progress } from '@/Components/ui/progress'
@@ -94,13 +95,30 @@ const submitBudget = () => {
     })
 }
 
-const hapus = (id) => {
-    if (confirm('Hapus transaksi ini?')) router.delete(route('keuangan.destroy', id))
+// Delete confirmation modal (dipakai bareng buat transaksi, budget, recurring, kategori)
+const deleteTarget = ref(null) // { type, id, title, description }
+const deleteProcessing = ref(false)
+function confirmHapus(type, id, title, description) {
+    deleteTarget.value = { type, id, title, description }
+}
+function batalHapus() { deleteTarget.value = null }
+useEscapeKey(deleteTarget, batalHapus)
+
+const DELETE_ROUTES = {
+    transaksi: (id) => route('keuangan.destroy', id),
+    budget:    (id) => route('keuangan.budget.destroy', id),
+    recurring: (id) => route('recurring.destroy', id),
+    kategori:  (id) => route('kategori.destroy', id),
 }
 
-const hapusBudget = (kategori) => {
-    if (confirm(`Hapus budget "${kategori}"?`))
-        router.delete(route('keuangan.budget.destroy', kategori), { preserveScroll: true })
+function hapus() {
+    if (!deleteTarget.value) return
+    const { type, id } = deleteTarget.value
+    deleteProcessing.value = true
+    router.delete(DELETE_ROUTES[type](id), {
+        preserveScroll: true,
+        onFinish: () => { deleteProcessing.value = false; deleteTarget.value = null },
+    })
 }
 
 // Export CSV keuangan
@@ -120,7 +138,6 @@ const submitRecurring = () => recurringForm.post(route('recurring.store'), {
 })
 const applyRecurring = () => router.post(route('recurring.apply'), {}, { preserveScroll: true })
 const toggleRecurring = (id) => router.patch(route('recurring.toggle', id), {}, { preserveScroll: true })
-const hapusRecurring = (id) => { if (confirm('Hapus transaksi berulang ini?')) router.delete(route('recurring.destroy', id), { preserveScroll: true }) }
 
 // Custom categories
 const showCatForm = ref(false)
@@ -129,7 +146,6 @@ const submitCat = () => catForm.post(route('kategori.store'), {
     preserveScroll: true,
     onSuccess: () => { catForm.reset('name'); showCatForm.value = false }
 })
-const hapusCat = (id) => router.delete(route('kategori.destroy', id), { preserveScroll: true })
 
 // All categories (default + custom) for the form
 // De-dupe: kategori kustom bisa dibuat dengan nama yang kebetulan sama dengan kategori
@@ -300,12 +316,12 @@ function buildChart() {
                 {
                     label: 'Net',
                     data: trendMonths.value.map(m => m.net),
-                    borderColor: '#eab308',
-                    backgroundColor: isBar ? 'rgba(234,179,8,0.5)' : 'rgba(234,179,8,0.08)',
+                    borderColor: '#6366f1',
+                    backgroundColor: isBar ? 'rgba(99,102,241,0.5)' : 'rgba(99,102,241,0.08)',
                     borderWidth: isBar ? 0 : 2,
                     borderDash: isBar ? [] : [5, 3],
                     pointRadius: isBar ? 0 : 3,
-                    pointBackgroundColor: '#eab308',
+                    pointBackgroundColor: '#6366f1',
                     pointBorderColor: ptBdr,
                     pointBorderWidth: 2,
                     fill: false,
@@ -382,7 +398,7 @@ function fmtTanggal(tgl) {
 
             <!-- QUICK ADD TRIGGER -->
             <button type="button" @click="showQuickAdd = true"
-                class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold bg-yellow-500 hover:bg-yellow-400 text-black transition-colors">
+                class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white transition-colors">
                 <Plus :size="16"/> Catat transaksi harian
             </button>
 
@@ -403,7 +419,7 @@ function fmtTanggal(tgl) {
                 <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardContent class="p-3">
                         <p class="text-xs text-zinc-500 mb-1">Keluar hari ini</p>
-                        <p class="text-sm font-semibold text-yellow-600 dark:text-yellow-400">{{ fmt(totalExpenseHariIni) }}</p>
+                        <p class="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{{ fmt(totalExpenseHariIni) }}</p>
                     </CardContent>
                 </Card>
                 <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -465,9 +481,9 @@ function fmtTanggal(tgl) {
             </Card>
 
             <!-- BUDGET -->
-            <Card class="border-yellow-200 dark:border-yellow-700/30 bg-white dark:bg-zinc-900">
+            <Card class="border-indigo-200 dark:border-indigo-700/30 bg-white dark:bg-zinc-900">
                 <CardHeader class="pb-2 pt-4 px-4">
-                    <CardTitle class="text-xs text-yellow-600 dark:text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <CardTitle class="text-xs text-indigo-600 dark:text-indigo-500 uppercase tracking-widest flex items-center gap-1.5">
                         <Target :size="12"/> Budget kategori
                     </CardTitle>
                 </CardHeader>
@@ -478,7 +494,7 @@ function fmtTanggal(tgl) {
                         </select>
                         <input type="number" v-model="budgetForm.limit_jumlah" min="0" placeholder="Limit Rp" aria-label="Limit budget (Rp)" :class="inputClass"/>
                         <button type="submit" :disabled="budgetForm.processing"
-                            class="px-3 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-semibold disabled:opacity-50 flex items-center justify-center">
+                            class="px-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center">
                             <Loader2 v-if="budgetForm.processing" :size="15" class="animate-spin"/>
                             <span v-else>Simpan</span>
                         </button>
@@ -503,7 +519,7 @@ function fmtTanggal(tgl) {
 
                     <div v-for="b in budgetProgress" :key="b.name" class="space-y-1.5">
                         <div class="flex justify-between items-center gap-2 text-sm">
-                            <button type="button" @click="editBudget(b.name)" class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors">
+                            <button type="button" @click="editBudget(b.name)" class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                                 <component :is="b.icon" :size="13" :class="b.color"/>
                                 {{ b.name }}
                             </button>
@@ -512,7 +528,9 @@ function fmtTanggal(tgl) {
                                     :class="b.limit === 0 ? 'text-zinc-400 dark:text-zinc-500' : b.percent > 100 ? 'text-red-600 dark:text-red-400' : b.percent >= 80 ? 'text-orange-500 dark:text-orange-400' : 'text-zinc-600 dark:text-zinc-300'">
                                     {{ b.limit === 0 ? 'Tanpa limit' : b.percent + '%' }} · {{ fmt(b.spent) }}
                                 </span>
-                                <button v-if="b.limit > 0" type="button" @click="hapusBudget(b.name)" :aria-label="`Hapus budget ${b.name}`"
+                                <button v-if="b.limit > 0" type="button"
+                                    @click="confirmHapus('budget', b.name, `Hapus budget &quot;${b.name}&quot;?`, 'Limit budget kategori ini akan dihapus.')"
+                                    :aria-label="`Hapus budget ${b.name}`"
                                     class="p-1 rounded text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                                     <X :size="11"/>
                                 </button>
@@ -551,7 +569,7 @@ function fmtTanggal(tgl) {
                             <span class="font-medium" :class="kategoriInfo('expense', b.kategori).color">{{ fmt(b.total) }}</span>
                         </div>
                         <div class="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                            <div class="h-full rounded-full bg-yellow-500/70 transition-all"
+                            <div class="h-full rounded-full bg-indigo-500/70 transition-all"
                                  :style="{ width: (b.total / maxKategori * 100) + '%' }"></div>
                         </div>
                     </div>
@@ -597,7 +615,7 @@ function fmtTanggal(tgl) {
                                     :class="item.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-zinc-900 dark:text-white'">
                                     {{ item.type === 'income' ? '+' : '-' }}{{ fmt(item.jumlah) }}
                                 </span>
-                                <button @click="hapus(item.id)" aria-label="Hapus transaksi"
+                                <button @click="confirmHapus('transaksi', item.id, 'Hapus transaksi ini?', 'Data transaksi akan dihapus permanen dan tidak bisa dikembalikan.')" aria-label="Hapus transaksi"
                                     class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
                                     <Trash2 :size="14"/>
                                 </button>
@@ -611,7 +629,7 @@ function fmtTanggal(tgl) {
         <div class="space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
-                    <Repeat2 :size="16" class="text-yellow-500"/>
+                    <Repeat2 :size="16" class="text-indigo-500"/>
                     Transaksi Berulang
                 </h2>
                 <div class="flex gap-2">
@@ -621,7 +639,7 @@ function fmtTanggal(tgl) {
                         Terapkan Bulan Ini
                     </button>
                     <button @click="showRecurringForm = !showRecurringForm"
-                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-xs font-medium transition-colors">
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-xs font-medium transition-colors">
                         <Plus :size="12"/>
                         Tambah
                     </button>
@@ -629,14 +647,14 @@ function fmtTanggal(tgl) {
             </div>
 
             <!-- Form tambah recurring -->
-            <Card v-if="showRecurringForm" class="border-yellow-400/40 dark:border-yellow-600/30 bg-yellow-50/50 dark:bg-yellow-900/10">
+            <Card v-if="showRecurringForm" class="border-indigo-400/40 dark:border-indigo-600/30 bg-indigo-50/50 dark:bg-indigo-900/10">
                 <CardContent class="p-4 space-y-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Transaksi Berulang</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="recurring-type" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Tipe</label>
                             <select id="recurring-type" v-model="recurringForm.type"
-                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option value="expense">Pengeluaran</option>
                                 <option value="income">Pemasukan</option>
                             </select>
@@ -644,20 +662,20 @@ function fmtTanggal(tgl) {
                         <div>
                             <label for="recurring-kategori" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Kategori</label>
                             <select id="recurring-kategori" v-model="recurringForm.kategori"
-                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option v-for="k in (recurringForm.type === 'income' ? allIncomeKategori : allExpenseKategori)" :key="k" :value="k">{{ k }}</option>
                             </select>
                         </div>
                         <div>
                             <label for="recurring-jumlah" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Jumlah (Rp)</label>
                             <input id="recurring-jumlah" v-model="recurringForm.jumlah" type="number" placeholder="0" min="1"
-                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                             <p v-if="recurringForm.errors.jumlah" class="text-xs text-red-500 mt-1">{{ recurringForm.errors.jumlah }}</p>
                         </div>
                         <div>
                             <label for="recurring-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Catatan (opsional)</label>
                             <input id="recurring-catatan" v-model="recurringForm.catatan" type="text" placeholder="Contoh: Cicilan KPR"
-                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                         </div>
                     </div>
                     <div class="flex gap-2 justify-end">
@@ -666,7 +684,7 @@ function fmtTanggal(tgl) {
                             Batal
                         </button>
                         <button @click="submitRecurring" :disabled="recurringForm.processing"
-                            class="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                            class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
                             <Loader2 v-if="recurringForm.processing" :size="14" class="animate-spin"/>
                             Simpan
                         </button>
@@ -698,7 +716,7 @@ function fmtTanggal(tgl) {
                             :aria-pressed="r.aktif">
                             <component :is="r.aktif ? ToggleRight : ToggleLeft" :size="22"/>
                         </button>
-                        <button @click="hapusRecurring(r.id)" aria-label="Hapus transaksi berulang"
+                        <button @click="confirmHapus('recurring', r.id, 'Hapus transaksi berulang ini?', 'Transaksi ini tidak akan diterapkan lagi mulai bulan depan.')" aria-label="Hapus transaksi berulang"
                             class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
                             <Trash2 :size="14"/>
                         </button>
@@ -711,28 +729,28 @@ function fmtTanggal(tgl) {
         <div class="space-y-4">
             <div class="flex items-center justify-between">
                 <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
-                    <Tag :size="16" class="text-yellow-500"/>
+                    <Tag :size="16" class="text-indigo-500"/>
                     Kategori Kustom
                 </h2>
                 <button @click="showCatForm = !showCatForm"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-xs font-medium transition-colors">
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-xs font-medium transition-colors">
                     <Plus :size="12"/>
                     Tambah
                 </button>
             </div>
 
             <!-- Form tambah kategori -->
-            <Card v-if="showCatForm" class="border-yellow-400/40 dark:border-yellow-600/30 bg-yellow-50/50 dark:bg-yellow-900/10">
+            <Card v-if="showCatForm" class="border-indigo-400/40 dark:border-indigo-600/30 bg-indigo-50/50 dark:bg-indigo-900/10">
                 <CardContent class="p-4 space-y-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Kategori Baru</p>
                     <div class="flex gap-3">
                         <select v-model="catForm.type" aria-label="Tipe kategori"
-                            class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                            class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             <option value="expense">Pengeluaran</option>
                             <option value="income">Pemasukan</option>
                         </select>
                         <input v-model="catForm.name" type="text" placeholder="Nama kategori" aria-label="Nama kategori" maxlength="50"
-                            class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"/>
+                            class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                     </div>
                     <p v-if="catForm.errors.name" class="text-xs text-red-500">{{ catForm.errors.name }}</p>
                     <div class="flex gap-2 justify-end">
@@ -741,7 +759,7 @@ function fmtTanggal(tgl) {
                             Batal
                         </button>
                         <button @click="submitCat" :disabled="catForm.processing || !catForm.name"
-                            class="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-zinc-900 text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                            class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
                             <Loader2 v-if="catForm.processing" :size="14" class="animate-spin"/>
                             Simpan
                         </button>
@@ -766,7 +784,9 @@ function fmtTanggal(tgl) {
                                      :class="i < customCats.filter(c => c.type === tipe).length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''">
                                     <Tag :size="14" :class="tipe === 'income' ? 'text-green-500' : 'text-orange-500'"/>
                                     <span class="flex-1 text-sm text-zinc-700 dark:text-zinc-200">{{ cat.name }}</span>
-                                    <button @click="hapusCat(cat.id)" :aria-label="`Hapus kategori ${cat.name}`"
+                                    <button
+                                        @click="confirmHapus('kategori', cat.id, `Hapus kategori &quot;${cat.name}&quot;?`, 'Kategori kustom ini akan dihapus permanen.')"
+                                        :aria-label="`Hapus kategori ${cat.name}`"
                                         class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                                         <Trash2 :size="14"/>
                                     </button>
@@ -859,7 +879,7 @@ function fmtTanggal(tgl) {
 
                             <button type="submit" :disabled="form.processing"
                                 class="w-full font-semibold py-3 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-                                :class="activeType === 'income' ? 'bg-green-500 hover:bg-green-400 text-black' : 'bg-yellow-500 hover:bg-yellow-400 text-black'">
+                                :class="activeType === 'income' ? 'bg-green-500 hover:bg-green-400 text-black' : 'bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white'">
                                 <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
                                 <span>{{ form.processing ? 'Menyimpan...' : (activeType === 'income' ? 'Catat pemasukan' : 'Catat pengeluaran') }}</span>
                             </button>
@@ -869,4 +889,14 @@ function fmtTanggal(tgl) {
             </div>
         </Transition>
     </Teleport>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <ConfirmModal
+        :open="!!deleteTarget"
+        :title="deleteTarget?.title ?? ''"
+        :description="deleteTarget?.description ?? ''"
+        :loading="deleteProcessing"
+        @confirm="hapus"
+        @cancel="batalHapus"
+    />
 </template>

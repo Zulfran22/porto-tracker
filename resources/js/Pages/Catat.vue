@@ -1,74 +1,85 @@
 <script setup>
-import { ref } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { ref, watch } from 'vue'
+import { useForm, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
+import PortfolioItemFields from '@/Components/PortfolioItemFields.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
-import { Separator } from '@/Components/ui/separator'
 import {
-    Lock, Coins, Shield, TrendingUp, Landmark,
-    StickyNote, Globe, Calendar, Loader2, AlertTriangle
+    Lock, StickyNote, Calendar, Loader2,
+    Plus, Trash2, Tag, Coins
 } from 'lucide-vue-next'
-import { CICILAN, DUE_DATE_DAY, CICILAN_TENOR_END } from '@/Composables/useFinanceConstants'
 import { inputClass } from '@/Composables/useFormStyles'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
+    investmentTypes: { type: Array, default: () => [] },
     aktifKontrak:  { type: Object, default: null },
 })
 
-// Kontrak aktif jadi sumber default cicilan bila ada, jatuh ke konstanta statis bila belum ada kontrak tercatat.
-const cicilanDefault = props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : CICILAN
-const tenorEndDate   = props.aktifKontrak ? props.aktifKontrak.tanggal_selesai : CICILAN_TENOR_END
-const tenorEndLabel  = new Date(tenorEndDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+// Cuma pre-fill dari kontrak aktif yang benar-benar tercatat — kalau belum ada,
+// biarkan kosong (bukan angka contoh) supaya tidak ketubruk tersimpan sebagai data asli.
+const cicilanDefault = props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : ''
+const tenorEndLabel  = props.aktifKontrak
+    ? new Date(props.aktifKontrak.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+    : null
 
 const now = new Date()
 const bulanDefault = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
 
-const form = useForm({
-    bulan:        bulanDefault,
-    emas_gram:    '',
-    harga_emas:   '',
-    cicilan:      cicilanDefault,
-    dana_darurat: 0,
-    reksa_dana:   0,
-    sbn:          0,
-    catatan:      '',
-})
-
-const loadingHarga = ref(false)
-const errorHarga   = ref('')
-const hargaFetched = ref(null)
-
-async function fetchHargaEmas() {
-    loadingHarga.value = true
-    errorHarga.value   = ''
-    hargaFetched.value = null
-    try {
-        const res  = await fetch('/api/harga-emas')
-        const data = await res.json()
-        if (!data.success) throw new Error(data.message)
-        hargaFetched.value = {
-            xauUsd:        data.xau_usd.toFixed(2),
-            usdIdr:        data.usd_idr.toLocaleString('id-ID'),
-            spotIdr:       data.spot_idr.toLocaleString('id-ID'),
-            pegadaian:     data.pegadaian,
-            markupPercent: data.markup_percent,
-        }
-        form.harga_emas = data.pegadaian
-    } catch {
-        errorHarga.value = props.lastHargaEmas
-            ? `Gagal ambil harga — menggunakan harga terakhir (Rp${props.lastHargaEmas.toLocaleString('id-ID')}).`
-            : 'Gagal ambil harga — isi manual.'
-        if (props.lastHargaEmas && !form.harga_emas) {
-            form.harga_emas = props.lastHargaEmas
-        }
-    } finally {
-        loadingHarga.value = false
-    }
+function buildItems(types) {
+    return types.map(t => ({
+        type_name: t.name,
+        unit: t.unit,
+        gram: t.unit === 'gram' ? '' : null,
+        jumlah: t.unit === 'rupiah' ? 0 : null,
+    }))
 }
 
+const form = useForm({
+    bulan:        bulanDefault,
+    harga_emas:   '',
+    cicilan:      cicilanDefault,
+    catatan:      '',
+    items:        buildItems(props.investmentTypes),
+})
+
+// Kalau user menambah/menghapus jenis investasi (lihat submitType/hapusType di
+// bawah), props.investmentTypes berubah lewat reload Inertia — rebuild items
+// sambil mempertahankan nilai yang sudah diisi untuk jenis yang masih ada.
+watch(() => props.investmentTypes, (newTypes) => {
+    const existingByName = Object.fromEntries(form.items.map(i => [i.type_name, i]))
+    form.items = newTypes.map(t => existingByName[t.name] ?? {
+        type_name: t.name,
+        unit: t.unit,
+        gram: t.unit === 'gram' ? '' : null,
+        jumlah: t.unit === 'rupiah' ? 0 : null,
+    })
+})
+
 const submit = () => form.post(route('portofolio.store'))
+
+// Kelola jenis investasi — mirror pola "Kategori Kustom" di Keuangan.vue.
+const showTypeForm = ref(false)
+const typeForm = useForm({ name: '' })
+const submitType = () => typeForm.post(route('investasi.tipe.store'), {
+    preserveScroll: true,
+    onSuccess: () => { typeForm.reset('name'); showTypeForm.value = false },
+})
+
+const deleteTypeTarget = ref(null)
+const deleteTypeProcessing = ref(false)
+const confirmHapusType = (t) => { deleteTypeTarget.value = t }
+const batalHapusType = () => { deleteTypeTarget.value = null }
+function hapusType() {
+    if (!deleteTypeTarget.value) return
+    deleteTypeProcessing.value = true
+    router.delete(route('investasi.tipe.destroy', deleteTypeTarget.value.id), {
+        preserveScroll: true,
+        onFinish: () => { deleteTypeProcessing.value = false; deleteTypeTarget.value = null },
+    })
+}
 </script>
 
 <template>
@@ -77,7 +88,7 @@ const submit = () => form.post(route('portofolio.store'))
 
             <div class="flex items-center justify-between mb-1">
                 <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Catat bulan ini</p>
-                <Badge class="bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-400 dark:border-yellow-700 border text-xs">{{ form.bulan }}</Badge>
+                <Badge class="bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/50 dark:text-indigo-400 dark:border-indigo-700 border text-xs">{{ form.bulan }}</Badge>
             </div>
 
             <form @submit.prevent="submit" class="space-y-3">
@@ -101,104 +112,76 @@ const submit = () => form.post(route('portofolio.store'))
                             <label for="catat-page-cicilan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                             </label>
-                            <input id="catat-page-cicilan" type="number" v-model="form.cicilan" :class="inputClass"/>
-                            <p class="text-xs text-zinc-400 mt-1">
-                                Jatuh tempo tgl {{ DUE_DATE_DAY }} setiap bulan · kontrak lunas {{ tenorEndLabel }}
-                                <span v-if="aktifKontrak"> · No. {{ aktifKontrak.nomor_kontrak }}</span>
+                            <input id="catat-page-cicilan" type="number" v-model="form.cicilan" placeholder="0 kalau tidak punya cicilan emas" :class="inputClass"/>
+                            <p v-if="aktifKontrak" class="text-xs text-zinc-400 mt-1">
+                                Jatuh tempo tgl {{ new Date(aktifKontrak.tanggal_mulai).getDate() }} setiap bulan · kontrak lunas {{ tenorEndLabel }} · No. {{ aktifKontrak.nomor_kontrak }}
+                            </p>
+                            <p v-else class="text-xs text-zinc-400 mt-1">
+                                Belum ada kontrak cicilan emas tercatat —
+                                <a :href="route('kontrak-cicilan.index')" class="text-indigo-500 hover:underline">tambah di sini</a>
+                                kalau kamu punya.
                             </p>
                         </div>
                     </CardContent>
                 </Card>
 
-                <!-- DATA EMAS -->
-                <Card class="border-yellow-200 dark:border-yellow-700/30 bg-white dark:bg-zinc-900">
-                    <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-yellow-600 dark:text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
-                            <Coins :size="12"/> Data emas
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent class="px-4 pb-4 space-y-3">
-                        <div>
-                            <label for="catat-page-emas-gram" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai — total gram dimiliki
-                            </label>
-                            <input id="catat-page-emas-gram" type="number" step="0.01" v-model="form.emas_gram"
-                                placeholder="mis. 0.50" :class="inputClass"/>
-                            <p v-if="form.errors.emas_gram" class="text-xs text-red-500 mt-1">{{ form.errors.emas_gram }}</p>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1.5">
-                                <label for="catat-page-harga-emas" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                    <Globe :size="12" class="text-zinc-400"/> Harga emas (Rp/gram)
-                                </label>
-                                <button type="button" @click="fetchHargaEmas" :disabled="loadingHarga"
-                                    class="text-xs px-3 py-1.5 rounded-lg border border-yellow-400/60 dark:border-yellow-700/50 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/50 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-                                    <Loader2 v-if="loadingHarga" :size="12" class="animate-spin"/>
-                                    <Globe v-else :size="12"/>
-                                    <span>{{ loadingHarga ? 'Mengambil...' : 'Ambil harga' }}</span>
+                <PortfolioItemFields
+                    :items="form.items"
+                    v-model:harga-emas="form.harga_emas"
+                    :last-harga-emas="lastHargaEmas"
+                    :harga-emas-error="form.errors.harga_emas"
+                    :aktif-kontrak="aktifKontrak"
+                />
+
+                <!-- JENIS INVESTASI -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between px-1">
+                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium flex items-center gap-1.5">
+                            <Tag :size="12"/> Jenis investasi
+                        </p>
+                        <button type="button" @click="showTypeForm = !showTypeForm"
+                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-xs font-medium transition-colors">
+                            <Plus :size="12"/> Tambah
+                        </button>
+                    </div>
+
+                    <Card v-if="showTypeForm" class="border-indigo-400/40 dark:border-indigo-600/30 bg-indigo-50/50 dark:bg-indigo-900/10">
+                        <CardContent class="p-4 space-y-3">
+                            <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah jenis investasi baru</p>
+                            <input v-model="typeForm.name" type="text" placeholder="mis. Kripto, Saham, Deposito" maxlength="50"
+                                :class="inputClass"/>
+                            <p v-if="typeForm.errors.name" class="text-xs text-red-500">{{ typeForm.errors.name }}</p>
+                            <div class="flex gap-2 justify-end">
+                                <button type="button" @click="showTypeForm = false"
+                                    class="px-4 py-2 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                                    Batal
+                                </button>
+                                <button type="button" @click="submitType" :disabled="typeForm.processing || !typeForm.name"
+                                    class="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                                    <Loader2 v-if="typeForm.processing" :size="14" class="animate-spin"/>
+                                    Simpan
                                 </button>
                             </div>
-                            <div v-if="hargaFetched" class="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-yellow-700/20 rounded-xl p-3 mb-2 space-y-1.5">
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-zinc-500">XAU/USD</span>
-                                    <span class="text-zinc-700 dark:text-zinc-300">${{ hargaFetched.xauUsd }}/oz</span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-zinc-500">USD/IDR</span>
-                                    <span class="text-zinc-700 dark:text-zinc-300">Rp{{ hargaFetched.usdIdr }}</span>
-                                </div>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-zinc-500">Spot/gram</span>
-                                    <span class="text-zinc-700 dark:text-zinc-300">Rp{{ hargaFetched.spotIdr }}</span>
-                                </div>
-                                <Separator class="bg-zinc-200 dark:bg-zinc-700 my-1"/>
-                                <div class="flex justify-between text-xs">
-                                    <span class="text-yellow-600 dark:text-yellow-400 font-medium">Est. Pegadaian (+{{ hargaFetched.markupPercent }}%)</span>
-                                    <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.pegadaian.toLocaleString('id-ID') }}</span>
-                                </div>
-                                <p class="text-zinc-400 text-xs">*Selalu cek harga aktual di app Pegadaian</p>
-                            </div>
-                            <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                                <AlertTriangle :size="12"/> {{ errorHarga }}
-                            </div>
-                            <input id="catat-page-harga-emas" type="number" v-model="form.harga_emas"
-                                placeholder="mis. 2545000" :class="inputClass"/>
-                            <p v-if="form.errors.harga_emas" class="text-xs text-red-500 mt-1">{{ form.errors.harga_emas }}</p>
-                            <p v-else-if="lastHargaEmas && !form.harga_emas" class="text-xs text-zinc-400 mt-1">
-                                Harga bulan lalu: Rp{{ lastHargaEmas.toLocaleString('id-ID') }}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
 
-                <!-- SALDO INVESTASI -->
-                <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                            <TrendingUp :size="12"/> Saldo investasi
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent class="px-4 pb-4 space-y-3">
-                        <div>
-                            <label for="catat-page-dana-darurat" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat — RDPU (Rp)
-                            </label>
-                            <input id="catat-page-dana-darurat" type="number" v-model="form.dana_darurat" :class="inputClass"/>
-                        </div>
-                        <div>
-                            <label for="catat-page-reksa-dana" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana (Rp)
-                            </label>
-                            <input id="catat-page-reksa-dana" type="number" v-model="form.reksa_dana" :class="inputClass"/>
-                        </div>
-                        <div>
-                            <label for="catat-page-sbn" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                                <Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN / Deposito (Rp)
-                            </label>
-                            <input id="catat-page-sbn" type="number" v-model="form.sbn" :class="inputClass"/>
-                        </div>
-                    </CardContent>
-                </Card>
+                    <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <CardContent class="p-0">
+                            <div v-for="(t, i) in investmentTypes" :key="t.id"
+                                 class="flex items-center gap-3 px-4 py-3"
+                                 :class="i < investmentTypes.length - 1 ? 'border-b border-zinc-100 dark:border-zinc-800' : ''">
+                                <component :is="t.unit === 'gram' ? Coins : Tag" :size="14"
+                                    :class="t.unit === 'gram' ? 'text-yellow-500' : 'text-indigo-500'"/>
+                                <span class="flex-1 text-sm text-zinc-700 dark:text-zinc-200">{{ t.name }}</span>
+                                <button v-if="t.unit !== 'gram'" type="button"
+                                    @click="confirmHapusType(t)" :aria-label="`Hapus jenis ${t.name}`"
+                                    class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                    <Trash2 :size="14"/>
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <!-- CATATAN -->
                 <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -212,12 +195,21 @@ const submit = () => form.post(route('portofolio.store'))
                 </Card>
 
                 <button type="submit" :disabled="form.processing"
-                    class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-3.5 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                    class="w-full bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white font-semibold py-3.5 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                     <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
                     <span>{{ form.processing ? 'Menyimpan...' : 'Simpan data bulan ini' }}</span>
                 </button>
 
             </form>
         </div>
+
+        <ConfirmModal
+            :open="!!deleteTypeTarget"
+            title="Hapus jenis investasi ini?"
+            :description="`Jenis '${deleteTypeTarget?.name ?? ''}' akan dihapus. Data bulan-bulan sebelumnya tetap tersimpan, tapi tidak bisa dipilih lagi untuk bulan baru.`"
+            :loading="deleteTypeProcessing"
+            @confirm="hapusType"
+            @cancel="batalHapusType"
+        />
     </AuthenticatedLayout>
 </template>

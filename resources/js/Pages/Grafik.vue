@@ -7,11 +7,11 @@ import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
 import { fmt, fmtJt } from '@/Composables/useCurrency'
-import { CICILAN_GRAM, BEP } from '@/Composables/useFinanceConstants'
 Chart.register(...registerables)
 
 const props = defineProps({
     portofolios: { type: Array, default: () => [] },
+    investmentTypes: { type: Array, default: () => [] },
     aktifKontrak: { type: Object, default: null },
 })
 const { isDark } = useTheme()
@@ -21,11 +21,19 @@ const chartHarga  = ref(null)
 const chartEmas   = ref(null)
 const chartInvest = ref(null)
 
-// Gram cicilan diambil dari kontrak aktif kalau ada; kalau tidak, jatuh ke konstanta
-// statis sebagai estimasi (isCicilanEstimasi) agar tidak tampil seperti data nyata.
-const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
-const isCicilanEstimasi = computed(() => !props.aktifKontrak)
-const bepTarget         = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
+function gramItemOf(items) {
+    return items?.find(i => i.unit === 'gram') ?? null
+}
+function findItem(items, name) {
+    return items?.find(i => i.type_name === name) ?? null
+}
+const rupiahTypes = computed(() => props.investmentTypes.filter(t => t.unit === 'rupiah'))
+
+// Gram/BEP cicilan hanya berarti kalau user benar-benar punya kontrak aktif —
+// tanpa itu 0, bukan menebak pakai kontrak siapa pun.
+const hasKontrak  = computed(() => !!props.aktifKontrak)
+const cicilanGram = computed(() => hasKontrak.value ? Number(props.aktifKontrak.total_gram) : 0)
+const bepTarget   = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 
 // Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber
 // kebenaran dengan gram cicilan dari kontrak aktif — lihat app/Models/Portofolio.php.
@@ -37,9 +45,10 @@ const growthPct  = computed(() => {
     if (!first.value || totalFirst.value === 0) return 0
     return ((totalLast.value - totalFirst.value) / totalFirst.value * 100).toFixed(1)
 })
-const totalEmasGram  = computed(() => last.value ? (Number(last.value.emas_gram) + cicilanGram.value).toFixed(2) : 0)
+const lastGramItem   = computed(() => gramItemOf(last.value?.items))
+const totalEmasGram  = computed(() => last.value ? (Number(lastGramItem.value?.gram ?? 0) + cicilanGram.value).toFixed(2) : 0)
 const hargaSekarang  = computed(() => last.value ? Number(last.value.harga_emas) : 0)
-const bepPct         = computed(() => Math.min(100, Math.round(hargaSekarang.value / bepTarget.value * 100)))
+const bepPct         = computed(() => bepTarget.value > 0 ? Math.min(100, Math.round(hargaSekarang.value / bepTarget.value * 100)) : 0)
 const bepSisa        = computed(() => Math.max(0, bepTarget.value - hargaSekarang.value))
 
 let totalChart = null
@@ -66,10 +75,14 @@ function buildCharts() {
     const labels  = props.portofolios.map(d => d.bulan)
     const totals  = props.portofolios.map(d => Math.round(d.total))
     const harga   = props.portofolios.map(d => Number(d.harga_emas))
-    const grams   = props.portofolios.map(d => parseFloat(d.emas_gram))
-    const darurat = props.portofolios.map(d => Number(d.dana_darurat))
-    const reksa   = props.portofolios.map(d => Number(d.reksa_dana))
-    const sbn     = props.portofolios.map(d => Number(d.sbn))
+    const grams   = props.portofolios.map(d => parseFloat(gramItemOf(d.items)?.gram ?? 0))
+    const palette = ['#3b82f6', '#22c55e', '#a855f7', '#f97316', '#ec4899', '#14b8a6']
+    const investDatasets = rupiahTypes.value.map((t, i) => ({
+        label: t.name,
+        data: props.portofolios.map(d => Number(findItem(d.items, t.name)?.jumlah ?? 0)),
+        backgroundColor: palette[i % palette.length],
+        borderRadius: 4, borderSkipped: false,
+    }))
 
     const chartOpts = (yCallback) => ({
         responsive: true, maintainAspectRatio: false,
@@ -102,8 +115,8 @@ function buildCharts() {
               backgroundColor: 'rgba(251,191,36,0.07)', borderWidth: 2,
               pointRadius: 5, pointBackgroundColor: '#fbbf24',
               pointBorderColor: ptBdr, pointBorderWidth: 2, fill: true, tension: 0.4 },
-            { label: 'BEP target', data: Array(labels.length).fill(bepTarget.value),
-              borderColor: '#ef4444', borderDash: [6,4], borderWidth: 1.5, pointRadius: 0, fill: false },
+            ...(props.aktifKontrak ? [{ label: 'BEP target', data: Array(labels.length).fill(bepTarget.value),
+              borderColor: '#ef4444', borderDash: [6,4], borderWidth: 1.5, pointRadius: 0, fill: false }] : []),
         ]},
         options: {
             responsive: true, maintainAspectRatio: false,
@@ -134,11 +147,7 @@ function buildCharts() {
 
     investChart = new Chart(chartInvest.value, {
         type: 'bar',
-        data: { labels, datasets: [
-            { label: 'Dana darurat', data: darurat, backgroundColor: '#3b82f6', borderRadius: 4, borderSkipped: false },
-            { label: 'Reksa dana',   data: reksa,   backgroundColor: '#22c55e', borderRadius: 4, borderSkipped: false },
-            { label: 'SBN',          data: sbn,     backgroundColor: '#a855f7', borderRadius: 4, borderSkipped: false },
-        ]},
+        data: { labels, datasets: investDatasets },
         options: {
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: true, position: 'bottom',
@@ -170,7 +179,7 @@ onBeforeUnmount(destroyCharts)
                 <p class="text-lg font-semibold text-zinc-700 dark:text-zinc-200 mb-2">Belum ada data</p>
                 <p class="text-sm text-zinc-500 mb-6">Catat minimal 1 bulan untuk melihat grafik</p>
                 <a :href="route('portofolio.create')"
-                   class="bg-yellow-500 text-black px-6 py-2.5 rounded-xl font-medium text-sm">
+                   class="bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium text-sm">
                     Catat sekarang
                 </a>
             </div>
@@ -179,9 +188,9 @@ onBeforeUnmount(destroyCharts)
 
                 <!-- SUMMARY -->
                 <div class="grid grid-cols-2 gap-2">
-                    <Card class="border-yellow-300/60 dark:border-yellow-700/40 bg-gradient-to-br from-yellow-50 to-white dark:from-yellow-950/40 dark:to-zinc-900">
+                    <Card class="border-indigo-300/60 dark:border-indigo-700/40 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-zinc-900">
                         <CardContent class="p-3">
-                            <p class="text-xs text-yellow-600 dark:text-yellow-500 mb-1">Total portofolio</p>
+                            <p class="text-xs text-indigo-600 dark:text-indigo-400 mb-1">Total portofolio</p>
                             <p class="text-lg font-bold text-zinc-900 dark:text-white">{{ fmtJt(totalLast) }}</p>
                             <Badge class="text-xs mt-1 border"
                                 :class="growthPct >= 0
@@ -195,7 +204,10 @@ onBeforeUnmount(destroyCharts)
                         <CardContent class="p-3">
                             <p class="text-xs text-zinc-500 mb-1">Total emas</p>
                             <p class="text-lg font-bold text-yellow-500 dark:text-yellow-400">{{ totalEmasGram }}g</p>
-                            <p class="text-xs text-zinc-400 mt-1">{{ cicilanGram }}g cicilan{{ isCicilanEstimasi ? ' (estimasi)' : '' }} + {{ last?.emas_gram }}g tunai</p>
+                            <p class="text-xs text-zinc-400 mt-1">
+                                <template v-if="aktifKontrak">{{ cicilanGram }}g cicilan + {{ lastGramItem?.gram ?? 0 }}g tunai</template>
+                                <template v-else>{{ lastGramItem?.gram ?? 0 }}g tunai</template>
+                            </p>
                         </CardContent>
                     </Card>
                     <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -215,7 +227,7 @@ onBeforeUnmount(destroyCharts)
                 </div>
 
                 <!-- BEP TRACKER -->
-                <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <Card v-if="aktifKontrak" class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardContent class="p-4">
                         <div class="flex justify-between items-center mb-2">
                             <p class="text-xs text-zinc-500 uppercase tracking-widest">BEP cicilan emas</p>
@@ -233,7 +245,7 @@ onBeforeUnmount(destroyCharts)
                                 <p class="text-xs font-semibold text-zinc-900 dark:text-white mt-0.5">{{ fmt(hargaSekarang) }}</p>
                             </div>
                             <div>
-                                <p class="text-xs text-zinc-500">Target BEP{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</p>
+                                <p class="text-xs text-zinc-500">Target BEP</p>
                                 <p class="text-xs font-semibold text-red-500 dark:text-red-400 mt-0.5">{{ fmt(bepTarget) }}</p>
                             </div>
                             <div>
@@ -268,9 +280,9 @@ onBeforeUnmount(destroyCharts)
                 </Card>
 
                 <!-- CHART 3 -->
-                <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <Card v-if="lastGramItem" class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest">Akumulasi emas tunai</CardTitle>
+                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest">Akumulasi {{ lastGramItem.type_name.toLowerCase() }}</CardTitle>
                     </CardHeader>
                     <CardContent class="px-4 pb-4" style="height:160px;">
                         <canvas ref="chartEmas"></canvas>
@@ -278,9 +290,9 @@ onBeforeUnmount(destroyCharts)
                 </Card>
 
                 <!-- CHART 4 -->
-                <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <Card v-if="rupiahTypes.length" class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest">Dana darurat & investasi</CardTitle>
+                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest">Investasi lainnya</CardTitle>
                     </CardHeader>
                     <CardContent class="px-4 pb-4" style="height:180px;">
                         <canvas ref="chartInvest"></canvas>

@@ -16,8 +16,12 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): Response
+    public function create(Request $request): Response|RedirectResponse
     {
+        if (! $this->hasCompletedOnboarding($request)) {
+            return redirect()->route('onboarding');
+        }
+
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
@@ -29,11 +33,25 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        if (! $this->hasCompletedOnboarding($request)) {
+            return redirect()->route('onboarding');
+        }
+
         $request->authenticate();
 
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard', absolute: false));
+    }
+
+    /**
+     * Onboarding dianggap selesai lewat flag session (baru saja menekan
+     * "Mulai") atau cookie jangka panjang (pernah menyelesaikannya dulu).
+     */
+    private function hasCompletedOnboarding(Request $request): bool
+    {
+        return $request->session()->get('onboarding.completed', false)
+            || (bool) $request->cookie('onboarding_seen');
     }
 
     /**

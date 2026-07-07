@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Portofolio extends Model
@@ -13,51 +14,50 @@ class Portofolio extends Model
     protected $fillable = [
         'user_id',
         'bulan',
-        'emas_gram',
         'harga_emas',
         'cicilan',
-        'dana_darurat',
-        'reksa_dana',
-        'sbn',
         'catatan',
     ];
 
     protected $casts = [
-        'emas_gram' => 'float',
         'harga_emas' => 'integer',
         'cicilan' => 'integer',
-        'dana_darurat' => 'integer',
-        'reksa_dana' => 'integer',
-        'sbn' => 'integer',
     ];
 
     protected $appends = ['total'];
-
-    // Cache kontrak aktif per user_id supaya serialisasi satu koleksi Portofolio
-    // tidak query KontrakCicilanEmas berulang kali (N+1).
-    protected static array $kontrakAktifCache = [];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    // Hitung total nilai portofolio
+    public function items(): HasMany
+    {
+        return $this->hasMany(PortfolioItem::class);
+    }
+
+    // Hitung total nilai portofolio. Query KontrakCicilanEmas langsung tiap panggilan
+    // (bukan static cache per user_id) — jumlah baris per user kecil (bulanan), dan
+    // static property pada model tidak direset antar request di Octane/queue worker,
+    // yang bisa membocorkan kontrak milik user lain kalau user_id dipakai ulang.
+    //
+    // Nilai investasi datang dari relasi items() — controller WAJIB eager-load
+    // with('items') tiap kali men-serialize Portofolio, kalau tidak setiap baris
+    // memicu query N+1 lewat append 'total' ini.
     public function getTotalAttribute(): int
     {
-        if (! array_key_exists($this->user_id, static::$kontrakAktifCache)) {
-            static::$kontrakAktifCache[$this->user_id] = KontrakCicilanEmas::aktifUntuk($this->user_id);
-        }
-        $kontrakAktif = static::$kontrakAktifCache[$this->user_id];
+        $kontrakAktif = KontrakCicilanEmas::aktifUntuk($this->user_id);
+        $gramCicilan = $kontrakAktif ? (float) $kontrakAktif->total_gram : 0.0;
+        $hargaEmas = (int) ($this->harga_emas ?? 0);
 
-        $gramCicilan = $kontrakAktif
-            ? (float) $kontrakAktif->total_gram
-            : config('finance.cicilan_gram_fallback');
+        $nilaiCicilan = $gramCicilan * $hargaEmas;
 
-        $nilaiEmasTunai = $this->emas_gram * $this->harga_emas;
-        $nilaiCicilan = $gramCicilan * $this->harga_emas;
+        $nilaiItems = $this->items->sum(function (PortfolioItem $item) use ($hargaEmas) {
+            return $item->unit === 'gram'
+                ? (float) $item->gram * $hargaEmas
+                : (float) ($item->jumlah ?? 0);
+        });
 
-        return $nilaiEmasTunai + $nilaiCicilan +
-               $this->dana_darurat + $this->reksa_dana + $this->sbn;
+        return (int) round($nilaiCicilan + $nilaiItems);
     }
 }

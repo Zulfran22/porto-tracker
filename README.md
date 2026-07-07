@@ -37,12 +37,15 @@ deploy, start from `.env.production.example` instead — see below.
 |---|---|---|
 | `GOLD_PEGADAIAN_MARKUP` | Markup applied to live spot gold price to estimate the Pegadaian retail price | `1.04` |
 | `GOLD_FALLBACK_XAU_PRICE` | Fallback USD/oz gold price used if the live price API is unavailable | `3280` |
-| `FINANCE_CICILAN_GRAM_FALLBACK` | Fallback installment gram amount used when no active contract exists | `5` |
 | `SENTRY_LARAVEL_DSN` | Error monitoring — leave blank to disable (no-op with no DSN) | _(empty)_ |
 
-`GOLD_*`/`FINANCE_*` also have JS-side counterparts in `resources/js/Composables/useFinanceConstants.js`
-that must be kept in sync manually with `config/gold.php`/`config/finance.php` — there is no single
-source of truth for these yet.
+`GOLD_*` also has a JS-side counterpart in `resources/js/Composables/useFinanceConstants.js`
+that must be kept in sync manually with `config/gold.php` — there is no single source of truth
+for these yet.
+
+Cicilan/BEP figures are never estimated from a fallback constant — they only ever come from
+a user's own active `KontrakCicilanEmas` record (`aktifKontrak`). If a user has no contract,
+those sections are hidden rather than guessing.
 
 ## Running tests
 

@@ -22,8 +22,8 @@ const verificationLinkSent = computed(() => props.status === 'verification-link-
         <Head title="Verifikasi Email" />
 
         <div class="flex flex-col items-center text-center mb-6">
-            <div class="w-14 h-14 rounded-2xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mb-4">
-                <MailCheck :size="26" class="text-yellow-600 dark:text-yellow-400"/>
+            <div class="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-500/15 flex items-center justify-center mb-4">
+                <MailCheck :size="26" class="text-indigo-600 dark:text-indigo-400"/>
             </div>
             <h1 class="text-xl font-bold text-zinc-900 dark:text-white">Verifikasi emailmu</h1>
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-2 max-w-xs">
@@ -43,8 +43,8 @@ const verificationLinkSent = computed(() => props.status === 'verification-link-
                 type="submit"
                 :disabled="form.processing"
                 class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm
-                       bg-yellow-500 hover:bg-yellow-400 active:bg-yellow-600
-                       text-black transition-colors shadow-md shadow-yellow-500/20
+                       bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600
+                       text-white transition-colors shadow-md shadow-indigo-500/20
                        disabled:opacity-60 disabled:cursor-not-allowed"
             >
                 <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>

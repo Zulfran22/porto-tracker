@@ -2,18 +2,37 @@
 
 use App\Http\Controllers\CustomCategoryController;
 use App\Http\Controllers\GoldPriceController;
+use App\Http\Controllers\InvestmentTypeController;
 use App\Http\Controllers\KontrakCicilanController;
 use App\Http\Controllers\PortofolioController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
-// Redirect root ke dashboard
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
+// Guest: onboarding carousel sebelum ke halaman login, sekali per browser
+// (cookie). User yang sudah login langsung diarahkan ke dashboard.
+Route::get('/', function (Request $request) {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    if ($request->cookie('onboarding_seen')) {
+        return redirect()->route('login');
+    }
+
+    return Inertia::render('Onboarding');
+})->name('onboarding');
+
+Route::post('/onboarding/continue', function (Request $request) {
+    $request->session()->put('onboarding.completed', true);
+
+    return redirect()->route('login')
+        ->withCookie(cookie()->forever('onboarding_seen', '1'));
+})->middleware('guest')->name('onboarding.continue');
 
 Route::middleware('auth')->group(function () {
 
@@ -45,6 +64,7 @@ Route::middleware('auth')->group(function () {
     // Target
     Route::get('/target', [TargetController::class, 'index'])->name('target');
     Route::put('/target', [TargetController::class, 'update'])->name('target.update');
+    Route::put('/target/budget', [TargetController::class, 'updateBudget'])->name('target.budget');
 
     // Keuangan (pengeluaran & pemasukan)
     Route::get('/keuangan', [TransactionController::class, 'index'])->name('keuangan.index');
@@ -62,6 +82,10 @@ Route::middleware('auth')->group(function () {
     // Custom categories
     Route::post('/keuangan/kategori', [CustomCategoryController::class, 'store'])->name('kategori.store');
     Route::delete('/keuangan/kategori/{category}', [CustomCategoryController::class, 'destroy'])->name('kategori.destroy');
+
+    // Investment types (kategori custom untuk Portofolio)
+    Route::post('/investasi/tipe', [InvestmentTypeController::class, 'store'])->name('investasi.tipe.store');
+    Route::delete('/investasi/tipe/{type}', [InvestmentTypeController::class, 'destroy'])->name('investasi.tipe.destroy');
 
     // Proxy harga emas
     Route::get('/api/harga-emas', [GoldPriceController::class, 'index'])->middleware('throttle:30,1');

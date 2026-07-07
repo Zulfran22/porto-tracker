@@ -2,11 +2,12 @@
 import { ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
+import ConfirmModal from '@/Components/ConfirmModal.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
 import KontrakFormFields from '@/Components/KontrakFormFields.vue'
 import { FileText, Trash2, Loader2, Eye, X, Paperclip, Pencil } from 'lucide-vue-next'
-import { CICILAN, CICILAN_GRAM, DEFAULT_TENOR_BULAN, DEFAULT_BIAYA_ADMIN } from '@/Composables/useFinanceConstants'
+import { DEFAULT_TENOR_BULAN, DEFAULT_BIAYA_ADMIN } from '@/Composables/useFinanceConstants'
 import { fmt } from '@/Composables/useCurrency'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
 
@@ -23,8 +24,8 @@ const form = useForm({
     no_rekening:    '',
     tanggal_mulai:  todayStr,
     tenor_bulan:    DEFAULT_TENOR_BULAN,
-    total_gram:     CICILAN_GRAM,
-    angsuran_bulan: CICILAN,
+    total_gram:     '',
+    angsuran_bulan: '',
     sewa_modal:     '',
     biaya_admin:    DEFAULT_BIAYA_ADMIN,
     catatan:        '',
@@ -42,8 +43,18 @@ const submit = () => form.post(route('kontrak-cicilan.store'), {
     },
 })
 
-const hapus = (id) => {
-    if (confirm('Hapus kontrak cicilan ini?')) router.delete(route('kontrak-cicilan.destroy', id))
+const deleteTarget = ref(null)
+const deleteProcessing = ref(false)
+function confirmHapus(k) { deleteTarget.value = k }
+function batalHapus() { deleteTarget.value = null }
+useEscapeKey(deleteTarget, batalHapus)
+
+function hapus() {
+    if (!deleteTarget.value) return
+    deleteProcessing.value = true
+    router.delete(route('kontrak-cicilan.destroy', deleteTarget.value.id), {
+        onFinish: () => { deleteProcessing.value = false; deleteTarget.value = null },
+    })
 }
 
 const detailTarget = ref(null)
@@ -117,9 +128,9 @@ const statusBadge = (status) => ({
 
             <!-- FORM TAMBAH KONTRAK -->
             <form @submit.prevent="submit" class="space-y-3">
-                <Card class="border-yellow-200 dark:border-yellow-700/30 bg-white dark:bg-zinc-900">
+                <Card class="border-indigo-200 dark:border-indigo-700/30 bg-white dark:bg-zinc-900">
                     <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-yellow-600 dark:text-yellow-500 uppercase tracking-widest flex items-center gap-1.5">
+                        <CardTitle class="text-xs text-indigo-600 dark:text-indigo-500 uppercase tracking-widest flex items-center gap-1.5">
                             <FileText :size="12"/> Tambah kontrak baru
                         </CardTitle>
                     </CardHeader>
@@ -129,7 +140,7 @@ const statusBadge = (status) => ({
                 </Card>
 
                 <button type="submit" :disabled="form.processing"
-                    class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-semibold py-3.5 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                    class="w-full bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white font-semibold py-3.5 rounded-xl text-sm disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
                     <Loader2 v-if="form.processing" :size="16" class="animate-spin"/>
                     <span>{{ form.processing ? 'Menyimpan...' : 'Simpan kontrak' }}</span>
                 </button>
@@ -150,10 +161,10 @@ const statusBadge = (status) => ({
                             </div>
                             <div class="flex items-center gap-2">
                                 <Badge :class="statusBadge(k.status) + ' border text-xs'">{{ k.status }}</Badge>
-                                <button @click="bukaEdit(k)" :aria-label="`Edit kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-yellow-500 transition-colors">
+                                <button @click="bukaEdit(k)" :aria-label="`Edit kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-indigo-500 transition-colors">
                                     <Pencil :size="14"/>
                                 </button>
-                                <button @click="hapus(k.id)" :aria-label="`Hapus kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-red-500 transition-colors">
+                                <button @click="confirmHapus(k)" :aria-label="`Hapus kontrak ${k.nomor_kontrak}`" class="text-zinc-400 hover:text-red-500 transition-colors">
                                     <Trash2 :size="14"/>
                                 </button>
                             </div>
@@ -164,11 +175,11 @@ const statusBadge = (status) => ({
                         </div>
                         <p v-if="k.catatan" class="text-xs text-zinc-400 italic">{{ k.catatan }}</p>
                         <a v-if="k.file_kontrak" :href="route('kontrak-cicilan.file', k.id)" target="_blank"
-                            class="inline-flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 hover:underline">
+                            class="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
                             <Paperclip :size="11"/> Lihat file kontrak
                         </a>
                         <button @click="lihatDetail(k)"
-                            class="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-yellow-600 dark:text-yellow-400 border border-yellow-400/60 dark:border-yellow-700/50 rounded-lg py-2 hover:bg-yellow-50 dark:hover:bg-yellow-950/50 transition-colors">
+                            class="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-400/60 dark:border-indigo-700/50 rounded-lg py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors">
                             <Eye :size="12"/> Lihat detail
                         </button>
                     </CardContent>
@@ -239,14 +250,14 @@ const statusBadge = (status) => ({
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500 dark:text-zinc-400 font-medium">Total seluruh angsuran</span>
-                            <span class="text-yellow-600 dark:text-yellow-400 font-semibold">{{ fmt(totalPembayaran(detailTarget)) }}</span>
+                            <span class="text-indigo-600 dark:text-indigo-400 font-semibold">{{ fmt(totalPembayaran(detailTarget)) }}</span>
                         </div>
                         <template v-if="detailTarget.catatan">
                             <div class="border-t border-zinc-100 dark:border-zinc-800 my-2"/>
                             <p class="text-zinc-400 italic">{{ detailTarget.catatan }}</p>
                         </template>
                         <a v-if="detailTarget.file_kontrak" :href="route('kontrak-cicilan.file', detailTarget.id)" target="_blank"
-                            class="flex items-center justify-center gap-1.5 mt-2 text-yellow-600 dark:text-yellow-400 hover:underline">
+                            class="flex items-center justify-center gap-1.5 mt-2 text-indigo-600 dark:text-indigo-400 hover:underline">
                             <Paperclip :size="12"/> Lihat file kontrak
                         </a>
                     </div>
@@ -283,7 +294,7 @@ const statusBadge = (status) => ({
                             Batal
                         </button>
                         <button type="submit" :disabled="editForm.processing"
-                            class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-yellow-500 hover:bg-yellow-400 text-black disabled:opacity-50 transition-colors">
+                            class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white disabled:opacity-50 transition-colors">
                             <Loader2 v-if="editForm.processing" :size="14" class="animate-spin"/>
                             <span>{{ editForm.processing ? 'Menyimpan...' : 'Simpan perubahan' }}</span>
                         </button>
@@ -292,4 +303,14 @@ const statusBadge = (status) => ({
             </div>
         </Transition>
     </Teleport>
+
+    <!-- DELETE CONFIRMATION MODAL -->
+    <ConfirmModal
+        :open="!!deleteTarget"
+        title="Hapus kontrak cicilan ini?"
+        :description="`Kontrak ${deleteTarget?.nomor_kontrak ?? ''} akan dihapus permanen dan tidak bisa dikembalikan.`"
+        :loading="deleteProcessing"
+        @confirm="hapus"
+        @cancel="batalHapus"
+    />
 </template>

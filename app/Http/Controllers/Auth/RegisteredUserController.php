@@ -47,6 +47,12 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        // Kalau user daftar lewat jalur langsung (tanpa lewat "/" dulu), tandai
+        // onboarding selesai juga di sini — supaya tidak dilempar balik ke
+        // carousel intro pas logout lalu login lagi. Lihat routes/web.php.
+        $request->session()->put('onboarding.completed', true);
+
+        return redirect(route('dashboard', absolute: false))
+            ->withCookie(cookie()->forever('onboarding_seen', '1'));
     }
 }

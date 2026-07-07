@@ -7,7 +7,7 @@ import { Link } from '@inertiajs/vue3'
 
         <!-- Logo -->
         <Link href="/" class="flex items-center gap-3 mb-8 group">
-            <img src="/icons/icon.svg" alt="WealthID" class="w-10 h-10 rounded-2xl shadow-lg shadow-yellow-500/30 group-hover:shadow-yellow-500/50 transition-shadow"/>
+            <img src="/icons/icon.png" alt="WealthID" class="w-10 h-10 rounded-2xl shadow-lg shadow-indigo-500/30 group-hover:shadow-indigo-500/50 transition-shadow"/>
             <div>
                 <p class="font-bold text-zinc-900 dark:text-white text-base leading-tight">WealthID</p>
                 <p class="text-xs text-zinc-500 leading-tight">Investasi emas &amp; saving</p>

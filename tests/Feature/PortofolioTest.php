@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\InvestmentType;
+use App\Models\KontrakCicilanEmas;
 use App\Models\Portofolio;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,14 +17,38 @@ class PortofolioTest extends TestCase
     {
         return array_merge([
             'bulan' => '2026-06',
-            'emas_gram' => 0.5,
             'harga_emas' => 2500000,
             'cicilan' => 1032662,
-            'dana_darurat' => 1000000,
-            'reksa_dana' => 500000,
-            'sbn' => 0,
             'catatan' => 'test',
+            'items' => [
+                ['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0.5],
+                ['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1000000],
+                ['type_name' => 'Reksa Dana', 'unit' => 'rupiah', 'jumlah' => 500000],
+                ['type_name' => 'SBN', 'unit' => 'rupiah', 'jumlah' => 0],
+            ],
         ], $overrides);
+    }
+
+    private function createPortofolio(User $user, array $overrides = []): Portofolio
+    {
+        $data = $this->payload($overrides);
+        $p = Portofolio::create([
+            'user_id' => $user->id,
+            'bulan' => $data['bulan'],
+            'harga_emas' => $data['harga_emas'],
+            'cicilan' => $data['cicilan'],
+            'catatan' => $data['catatan'],
+        ]);
+        foreach ($data['items'] as $item) {
+            $p->items()->create([
+                'type_name' => $item['type_name'],
+                'unit' => $item['unit'],
+                'gram' => $item['unit'] === 'gram' ? ($item['gram'] ?? 0) : null,
+                'jumlah' => $item['unit'] === 'rupiah' ? ($item['jumlah'] ?? 0) : null,
+            ]);
+        }
+
+        return $p;
     }
 
     public function test_dashboard_is_displayed(): void
@@ -44,23 +70,35 @@ class PortofolioTest extends TestCase
             'bulan' => '2026-06',
             'catatan' => 'test',
         ]);
+        $portofolio = Portofolio::where('user_id', $user->id)->where('bulan', '2026-06')->first();
+        $this->assertDatabaseHas('portfolio_items', [
+            'portofolio_id' => $portofolio->id,
+            'type_name' => 'Emas Tunai',
+            'gram' => 0.5,
+        ]);
     }
 
     public function test_store_updates_the_same_month_instead_of_duplicating(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)->post('/portofolio', $this->payload(['emas_gram' => 0.5]));
-        $this->actingAs($user)->post('/portofolio', $this->payload(['emas_gram' => 0.75]));
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0.5]],
+        ]));
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0.75]],
+        ]));
 
         $this->assertSame(1, Portofolio::where('user_id', $user->id)->where('bulan', '2026-06')->count());
-        $this->assertDatabaseHas('portofolios', ['user_id' => $user->id, 'bulan' => '2026-06', 'emas_gram' => 0.75]);
+        $portofolio = Portofolio::where('user_id', $user->id)->where('bulan', '2026-06')->first();
+        $this->assertSame(1, $portofolio->items()->count());
+        $this->assertDatabaseHas('portfolio_items', ['portofolio_id' => $portofolio->id, 'gram' => 0.75]);
     }
 
     public function test_deleting_a_month_soft_deletes_it(): void
     {
         $user = User::factory()->create();
-        $portofolio = Portofolio::create(array_merge(['user_id' => $user->id], $this->payload()));
+        $portofolio = $this->createPortofolio($user);
 
         $this->actingAs($user)->delete("/portofolio/{$portofolio->id}");
 
@@ -70,39 +108,41 @@ class PortofolioTest extends TestCase
     public function test_re_catat_of_a_deleted_month_restores_it_instead_of_duplicating(): void
     {
         $user = User::factory()->create();
-        $portofolio = Portofolio::create(array_merge(['user_id' => $user->id], $this->payload(['emas_gram' => 0.5])));
+        $portofolio = $this->createPortofolio($user, [
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0.5]],
+        ]);
         $portofolio->delete();
 
-        $this->actingAs($user)->post('/portofolio', $this->payload(['emas_gram' => 1.25]));
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 1.25]],
+        ]));
 
         $this->assertSame(1, Portofolio::withTrashed()->where('user_id', $user->id)->where('bulan', '2026-06')->count());
-        $this->assertDatabaseHas('portofolios', [
-            'id' => $portofolio->id,
-            'emas_gram' => 1.25,
-            'deleted_at' => null,
-        ]);
+        $this->assertDatabaseHas('portofolios', ['id' => $portofolio->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('portfolio_items', ['portofolio_id' => $portofolio->id, 'gram' => 1.25]);
     }
 
     public function test_portofolio_can_be_updated_only_by_owner(): void
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
-        $portofolio = Portofolio::create(array_merge(['user_id' => $owner->id], $this->payload()));
+        $portofolio = $this->createPortofolio($owner);
 
-        $this->actingAs($other)->put("/portofolio/{$portofolio->id}", $this->payload(['emas_gram' => 9]))
+        $this->actingAs($other)->put("/portofolio/{$portofolio->id}", $this->payload())
             ->assertForbidden();
 
-        $this->actingAs($owner)->put("/portofolio/{$portofolio->id}", $this->payload(['emas_gram' => 9]))
-            ->assertRedirect(route('dashboard'));
+        $this->actingAs($owner)->put("/portofolio/{$portofolio->id}", $this->payload([
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 9]],
+        ]))->assertRedirect(route('dashboard'));
 
-        $this->assertDatabaseHas('portofolios', ['id' => $portofolio->id, 'emas_gram' => 9]);
+        $this->assertDatabaseHas('portfolio_items', ['portofolio_id' => $portofolio->id, 'gram' => 9]);
     }
 
     public function test_update_rejects_retargeting_bulan_to_a_month_that_already_exists(): void
     {
         $user = User::factory()->create();
-        Portofolio::create(array_merge(['user_id' => $user->id], $this->payload(['bulan' => '2026-05'])));
-        $june = Portofolio::create(array_merge(['user_id' => $user->id], $this->payload(['bulan' => '2026-06'])));
+        $this->createPortofolio($user, ['bulan' => '2026-05']);
+        $june = $this->createPortofolio($user, ['bulan' => '2026-06']);
 
         $this->actingAs($user)
             ->put("/portofolio/{$june->id}", $this->payload(['bulan' => '2026-05']))
@@ -118,6 +158,69 @@ class PortofolioTest extends TestCase
             ->assertSessionHasErrors('bulan');
     }
 
+    public function test_harga_emas_optional_without_gram_item_and_no_kontrak(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/portofolio', $this->payload([
+            'harga_emas' => null,
+            'items' => [
+                ['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0],
+                ['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 500000],
+            ],
+        ]));
+
+        $response->assertSessionDoesntHaveErrors('harga_emas');
+        $response->assertRedirect(route('dashboard'));
+    }
+
+    public function test_harga_emas_required_when_gram_item_has_value(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/portofolio', $this->payload([
+            'harga_emas' => null,
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 2]],
+        ]));
+
+        $response->assertSessionHasErrors('harga_emas');
+    }
+
+    public function test_harga_emas_required_when_active_kontrak_exists_even_without_gram(): void
+    {
+        $user = User::factory()->create();
+        KontrakCicilanEmas::create([
+            'user_id' => $user->id, 'nomor_kontrak' => 'X-1',
+            'tanggal_mulai' => '2026-01-04', 'tanggal_selesai' => '2027-01-04',
+            'tenor_bulan' => 12, 'total_gram' => 3, 'angsuran_bulan' => 500000,
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($user)->post('/portofolio', $this->payload([
+            'harga_emas' => null,
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 0]],
+        ]));
+
+        $response->assertSessionHasErrors('harga_emas');
+    }
+
+    public function test_total_attribute_includes_custom_investment_type(): void
+    {
+        $user = User::factory()->create();
+        InvestmentType::ensureDefaultsFor($user->id);
+        InvestmentType::create(['user_id' => $user->id, 'name' => 'Kripto', 'unit' => 'rupiah', 'is_default' => false, 'urutan' => 5]);
+
+        $portofolio = $this->createPortofolio($user, [
+            'items' => [
+                ['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 1],
+                ['type_name' => 'Kripto', 'unit' => 'rupiah', 'jumlah' => 250000],
+            ],
+        ]);
+
+        $fresh = Portofolio::with('items')->find($portofolio->id);
+        $this->assertEquals((1 * 2500000) + 250000, $fresh->total);
+    }
+
     public function test_catat_context_returns_current_month_defaults_when_none_exists(): void
     {
         $user = User::factory()->create();
@@ -130,7 +233,7 @@ class PortofolioTest extends TestCase
     public function test_catat_context_with_id_returns_that_specific_month_for_editing(): void
     {
         $user = User::factory()->create();
-        $portofolio = Portofolio::create(array_merge(['user_id' => $user->id], $this->payload(['bulan' => '2026-03'])));
+        $portofolio = $this->createPortofolio($user, ['bulan' => '2026-03']);
 
         $response = $this->actingAs($user)->get('/api/catat-context?id='.$portofolio->id);
 
@@ -141,7 +244,7 @@ class PortofolioTest extends TestCase
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
-        $portofolio = Portofolio::create(array_merge(['user_id' => $owner->id], $this->payload()));
+        $portofolio = $this->createPortofolio($owner);
 
         $this->actingAs($other)->get('/api/catat-context?id='.$portofolio->id)->assertNotFound();
     }

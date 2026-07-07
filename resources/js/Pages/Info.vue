@@ -6,30 +6,35 @@ import { Badge } from '@/Components/ui/badge'
 import { Separator } from '@/Components/ui/separator'
 import {
     FileText, Target, PiggyBank, Info,
-    Lock, Coins, Shield, TrendingUp, Landmark,
+    Lock, Coins, TrendingUp, Tag,
     Clock, Calendar, Code2, Hash
 } from 'lucide-vue-next'
 import { fmt } from '@/Composables/useCurrency'
-import { CICILAN, CICILAN_GRAM, BEP, DUE_DATE_DAY, DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
+import { DEFAULT_BUDGET, hitungAlokasiBulanan } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
     lastCicilan:   { type: Number, default: null },
+    investmentTypes: { type: Array, default: () => [] },
     aktifKontrak:  { type: Object, default: null },
+    budgetBulanan: { type: Number, default: DEFAULT_BUDGET },
 })
 
-// Kontrak aktif jadi sumber utama; kalau tidak ada, jatuh ke entri portofolio terakhir,
-// baru ke konstanta statis sebagai estimasi paling akhir.
-const cicilanGram       = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.total_gram) : CICILAN_GRAM)
-const isCicilanEstimasi = computed(() => !props.aktifKontrak)
-const cicilanBulanan    = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : (props.lastCicilan ?? CICILAN))
-const bepTarget      = computed(() => props.aktifKontrak ? Number(props.aktifKontrak.bep_per_gram) : BEP)
+// Kontrak & BEP hanya berarti kalau user benar-benar punya kontrak aktif tercatat —
+// tanpa itu jangan menebak pakai kontrak siapa pun, tampilkan empty-state di template.
+const hasKontrak     = computed(() => !!props.aktifKontrak)
+const cicilanGram    = computed(() => hasKontrak.value ? Number(props.aktifKontrak.total_gram) : 0)
+const cicilanBulanan = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
+const bepTarget      = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 const hargaSekarang  = computed(() => props.lastHargaEmas)
-const bepGap         = computed(() => hargaSekarang.value
+const bepGap         = computed(() => (hasKontrak.value && bepTarget.value > 0 && hargaSekarang.value)
     ? Math.max(0, Math.round((bepTarget.value - hargaSekarang.value) / bepTarget.value * 1000) / 10)
     : null)
 
-const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
+// Budget bulanan tersimpan (diatur lewat slider di Dashboard) — sumber yang
+// sama dengan Dashboard & Target. Cicilan cuma dikurangi dari budget kalau nyata.
+// investmentTypes di sini sudah difilter ke unit='rupiah' oleh controller.
+const alokasi = hitungAlokasiBulanan(props.budgetBulanan, cicilanBulanan.value, props.investmentTypes.length)
 </script>
 
 <template>
@@ -45,10 +50,10 @@ const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
                         <FileText :size="12"/> Kontrak cicilan emas
                     </CardTitle>
                 </CardHeader>
-                <CardContent class="px-4 pb-4 space-y-2.5">
+                <CardContent v-if="hasKontrak" class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas cicilan</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ cicilanGram.toFixed(4) }} gram{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</span>
+                        <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ cicilanGram.toFixed(4) }} gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Angsuran/bulan</span>
@@ -57,13 +62,20 @@ const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Clock :size="12" class="text-red-500 dark:text-red-400"/> Batas bayar</span>
-                        <Badge class="bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-400 dark:border-red-700 border text-xs">Tanggal {{ String(DUE_DATE_DAY).padStart(2, '0') }} tiap bulan</Badge>
+                        <Badge class="bg-red-100 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-400 dark:border-red-700 border text-xs">Tanggal {{ new Date(aktifKontrak.tanggal_mulai).getDate() }} tiap bulan</Badge>
                     </div>
+                </CardContent>
+                <CardContent v-else class="px-4 pb-4">
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">Belum ada kontrak cicilan emas tercatat.</p>
+                    <a :href="route('kontrak-cicilan.index')"
+                       class="inline-block text-xs px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white font-medium transition-colors">
+                        Tambah kontrak
+                    </a>
                 </CardContent>
             </Card>
 
             <!-- BEP -->
-            <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+            <Card v-if="hasKontrak" class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                 <CardHeader class="pb-2 pt-4 px-4">
                     <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
                         <Target :size="12"/> Target BEP
@@ -71,7 +83,7 @@ const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
                 </CardHeader>
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Target :size="12" class="text-yellow-500 dark:text-yellow-400"/> BEP cicilan{{ isCicilanEstimasi ? ' (estimasi)' : '' }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Target :size="12" class="text-yellow-500 dark:text-yellow-400"/> BEP cicilan</span>
                         <span class="text-yellow-500 dark:text-yellow-400 font-semibold">{{ fmt(bepTarget) }}/gram</span>
                     </div>
                     <div class="flex justify-between text-sm items-center">
@@ -97,29 +109,20 @@ const alokasi = hitungAlokasiBulanan(DEFAULT_BUDGET, cicilanBulanan.value)
                 <CardContent class="px-4 pb-4 space-y-2.5">
                     <div class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400">Budget total</span>
-                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(DEFAULT_BUDGET) }}</span>
+                        <span class="text-zinc-900 dark:text-white font-semibold">{{ fmt(budgetBulanan) }}</span>
                     </div>
                     <Separator class="bg-zinc-200 dark:bg-zinc-800"/>
-                    <div class="flex justify-between text-sm items-center">
+                    <div v-if="hasKontrak" class="flex justify-between text-sm items-center">
                         <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="12" class="text-yellow-600"/> Cicilan emas</span>
                         <span class="text-yellow-600 font-medium">{{ fmt(cicilanBulanan) }}</span>
                     </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> Emas tunai</span>
-                        <span class="text-yellow-500 dark:text-yellow-400 font-medium">~{{ fmt(alokasi.emas) }}</span>
+                    <div v-for="t in investmentTypes" :key="t.id" class="flex justify-between text-sm items-center">
+                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Tag :size="12" class="text-indigo-500"/> {{ t.name }}</span>
+                        <span class="text-indigo-500 dark:text-indigo-400 font-medium">~{{ fmt(alokasi.perType) }}</span>
                     </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Shield :size="12" class="text-blue-500 dark:text-blue-400"/> Dana darurat</span>
-                        <span class="text-blue-500 dark:text-blue-400 font-medium">~{{ fmt(alokasi.darurat) }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> Reksa dana</span>
-                        <span class="text-green-500 dark:text-green-400 font-medium">~{{ fmt(alokasi.reksa) }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm items-center">
-                        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Landmark :size="12" class="text-purple-500 dark:text-purple-400"/> SBN</span>
-                        <span class="text-purple-500 dark:text-purple-400 font-medium">~{{ fmt(alokasi.sbn) }}</span>
-                    </div>
+                    <p v-if="!investmentTypes.length" class="text-sm text-zinc-400 text-center py-2">
+                        Belum ada jenis investasi ber-Rupiah.
+                    </p>
                 </CardContent>
             </Card>
 

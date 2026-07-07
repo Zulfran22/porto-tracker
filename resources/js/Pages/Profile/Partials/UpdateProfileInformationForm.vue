@@ -30,7 +30,7 @@ const form = useForm({
                         class="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm transition-colors
                                bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700
                                text-zinc-900 dark:text-zinc-100
-                               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         :class="{ 'border-red-400': form.errors.name }"/>
                 </div>
                 <InputError :message="form.errors.name"/>
@@ -44,7 +44,7 @@ const form = useForm({
                         class="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm transition-colors
                                bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700
                                text-zinc-900 dark:text-zinc-100
-                               focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400"
+                               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                         :class="{ 'border-red-400': form.errors.email }"/>
                 </div>
                 <InputError :message="form.errors.email"/>
@@ -65,7 +65,7 @@ const form = useForm({
             <div class="flex items-center gap-3 pt-1">
                 <button type="submit" :disabled="form.processing"
                     class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
-                           bg-yellow-500 hover:bg-yellow-400 text-black transition-colors
+                           bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white transition-colors
                            disabled:opacity-60 disabled:cursor-not-allowed">
                     <Save :size="14"/>
                     {{ form.processing ? 'Menyimpan...' : 'Simpan' }}

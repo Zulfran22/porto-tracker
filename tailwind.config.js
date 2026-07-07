@@ -16,8 +16,12 @@ export default {
     	extend: {
     		fontFamily: {
     			sans: [
-    				'Figtree',
+    				'Geist',
                     ...defaultTheme.fontFamily.sans
+                ],
+    			mono: [
+    				'Geist Mono',
+                    ...defaultTheme.fontFamily.mono
                 ]
     		},
     		borderRadius: {
@@ -59,6 +63,18 @@ export default {
     			border: 'hsl(var(--border))',
     			input: 'hsl(var(--input))',
     			ring: 'hsl(var(--ring))',
+    			profit: {
+    				DEFAULT: 'var(--wt-profit)',
+    				tint: 'var(--wt-profit-tint)'
+    			},
+    			loss: {
+    				DEFAULT: 'var(--wt-loss)',
+    				tint: 'var(--wt-loss-tint)'
+    			},
+    			warn: {
+    				DEFAULT: 'var(--wt-warn)',
+    				tint: 'var(--wt-warn-tint)'
+    			},
     			chart: {
     				'1': 'hsl(var(--chart-1))',
     				'2': 'hsl(var(--chart-2))',
