@@ -32,7 +32,10 @@ class PortofolioController extends Controller
             'portofolios' => $data,
             'investmentTypes' => InvestmentType::where('user_id', auth()->id())->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
-            'budgetBulanan' => Target::budgetBulananUntuk(auth()->id()),
+            // Notif jatuh tempo hilang begitu cicilan bulan berjalan tercatat lewat
+            // halaman/modal Catat (field "Cicilan emas" pada data bulan ini) —
+            // tombol "Catat pembayaran" di notif hanya mengarahkan ke form itu.
+            'cicilanPaid' => (int) ($data->firstWhere('bulan', now()->format('Y-m'))?->cicilan ?? 0) > 0,
             'cashflow' => [
                 'income' => $cashflow->where('type', 'income')->sum('jumlah'),
                 'expense' => $cashflow->where('type', 'expense')->sum('jumlah'),

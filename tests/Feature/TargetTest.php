@@ -121,15 +121,17 @@ class TargetTest extends TestCase
         ])->assertSessionHasErrors('budget_bulanan');
     }
 
-    public function test_dashboard_receives_the_saved_budget(): void
+    public function test_info_receives_the_saved_budget(): void
     {
+        // Simulator "Rencana & simulasi saving/bulan" pindah dari Dashboard ke
+        // Info — budgetBulanan sekarang cuma perlu tersedia di sana.
         $user = User::factory()->create();
         Target::create([
             'user_id' => $user->id,
             'budget_bulanan' => 4500000,
         ]);
 
-        $this->actingAs($user)->get('/dashboard')
+        $this->actingAs($user)->get('/info')
             ->assertInertia(fn ($page) => $page->where('budgetBulanan', 4500000));
     }
 }

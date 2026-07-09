@@ -7,6 +7,7 @@ use App\Models\KontrakCicilanEmas;
 use App\Models\Portofolio;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class PortofolioTest extends TestCase
@@ -56,6 +57,37 @@ class PortofolioTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)->get('/dashboard')->assertOk();
+    }
+
+    // cicilanPaid mengontrol notif jatuh tempo di dashboard: hilang begitu data
+    // bulan berjalan tersimpan dengan field cicilan terisi (lewat halaman Catat
+    // yang dituju tombol "Catat pembayaran" di notif).
+    public function test_dashboard_cicilan_paid_mengikuti_cicilan_bulan_berjalan(): void
+    {
+        $user = User::factory()->create();
+
+        // Belum ada data sama sekali → belum dianggap bayar.
+        $this->actingAs($user)->get('/dashboard')
+            ->assertInertia(fn (Assert $page) => $page->where('cicilanPaid', false));
+
+        // Data bulan lain (walau cicilan terisi) tidak dihitung.
+        $this->createPortofolio($user, ['bulan' => '2020-01']);
+        $this->actingAs($user)->get('/dashboard')
+            ->assertInertia(fn (Assert $page) => $page->where('cicilanPaid', false));
+
+        // Data bulan berjalan dengan cicilan terisi → notif dianggap lunas.
+        $this->createPortofolio($user, ['bulan' => now()->format('Y-m')]);
+        $this->actingAs($user)->get('/dashboard')
+            ->assertInertia(fn (Assert $page) => $page->where('cicilanPaid', true));
+    }
+
+    public function test_dashboard_cicilan_paid_false_ketika_cicilan_bulan_berjalan_nol(): void
+    {
+        $user = User::factory()->create();
+        $this->createPortofolio($user, ['bulan' => now()->format('Y-m'), 'cicilan' => 0]);
+
+        $this->actingAs($user)->get('/dashboard')
+            ->assertInertia(fn (Assert $page) => $page->where('cicilanPaid', false));
     }
 
     public function test_store_creates_a_new_month(): void

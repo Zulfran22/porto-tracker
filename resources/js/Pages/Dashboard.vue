@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
@@ -7,22 +7,21 @@ import { Badge } from '@/Components/ui/badge'
 import { Progress } from '@/Components/ui/progress'
 import { Separator } from '@/Components/ui/separator'
 import {
-    Bell, AlertTriangle, AlertCircle,
+    Bell, AlertTriangle, AlertCircle, CheckCircle2,
     Lock, Coins, TrendingUp, StickyNote,
-    Pencil, Trash2, ChevronRight, Calendar, Wallet,
+    Pencil, Trash2, ChevronRight, Wallet,
     ArrowDownCircle, ArrowUpCircle, Download, X
 } from 'lucide-vue-next'
 import { exportCSV } from '@/Composables/useExport'
 import { fmt, fmtJt } from '@/Composables/useCurrency'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
-import { DEFAULT_BUDGET } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
     portofolios: Array,
     investmentTypes: { type: Array, default: () => [] },
     aktifKontrak: { type: Object, default: null },
+    cicilanPaid: { type: Boolean, default: false },
     cashflow: { type: Object, default: () => ({ income: 0, expense: 0, net: 0 }) },
-    budgetBulanan: { type: Number, default: DEFAULT_BUDGET },
 })
 
 const last = computed(() => props.portofolios?.at(-1) ?? null)
@@ -57,72 +56,9 @@ const cashNet = computed(() => Number(props.cashflow?.net ?? 0))
 const cashBurnPct = computed(() => cashIncome.value > 0 ? Math.min(100, Math.round(cashExpense.value / cashIncome.value * 100)) : 0)
 const cashSavePct = computed(() => cashIncome.value > 0 ? Math.round(cashNet.value / cashIncome.value * 100) : 0)
 
-// Slider simulasi — budget di-init dari server dan dipersist balik (debounced)
-// supaya Dashboard, Target, dan Info memakai satu angka budget yang sama.
-// Simulator ini murni kalkulator (tidak butuh data portofolio nyata), jadi
-// sengaja TIDAK digantung di dalam `template v-else` — lihat di bawah.
-const budget = ref(props.budgetBulanan)
-
-let budgetTimer = null
-watch(budget, (val) => {
-    clearTimeout(budgetTimer)
-    budgetTimer = setTimeout(() => {
-        router.put(route('target.budget'), { budget_bulanan: val }, {
-            preserveScroll: true,
-            preserveState: true,
-            only: [],
-        })
-    }, 600)
-})
-
-// Alokasi simulasi hanya mencakup jenis investasi ber-satuan Rupiah (bukan
-// Emas Tunai yang gram-based) — split rata secara default, sisa pembulatan
-// diserap slider terakhir supaya totalnya selalu genap 100%.
-function evenSplit(n) {
-    if (n === 0) return []
-    const base = Math.floor(100 / n)
-    const arr = Array(n).fill(base)
-    arr[n - 1] = 100 - base * (n - 1)
-    return arr
-}
-const allocations = ref(rupiahTypes.value.map((t, i) => ({
-    type_name: t.name,
-    pct: evenSplit(rupiahTypes.value.length)[i],
-})))
-watch(rupiahTypes, (newTypes) => {
-    const existing = Object.fromEntries(allocations.value.map(a => [a.type_name, a.pct]))
-    const splits = evenSplit(newTypes.length)
-    allocations.value = newTypes.map((t, i) => ({ type_name: t.name, pct: existing[t.name] ?? splits[i] }))
-})
-
-const tahun = ref(5)
-const sisa  = computed(() => Math.max(0, budget.value - cicilanBulanan.value))
-const totalPct = computed(() => allocations.value.reduce((sum, a) => sum + a.pct, 0))
-
-function monthlyFor(alloc) {
-    return Math.round(sisa.value * alloc.pct / 100)
-}
-
-// Asumsi return tahunan per jenis investasi — dikenal untuk 3 default, jatuh
-// ke 8% generik untuk jenis custom yang tidak punya data historis.
-const DEFAULT_RATES = { 'Dana Darurat': 0.05, 'Reksa Dana': 0.11, 'SBN': 0.065 }
-function rateFor(name) {
-    return DEFAULT_RATES[name] ?? 0.08
-}
-
-function fv(monthly, rate, months) {
-    const r = rate / 12
-    return r === 0 ? monthly * months : monthly * ((Math.pow(1 + r, months) - 1) / r)
-}
-
-const months     = computed(() => tahun.value * 12)
-const nilaiAkhir = computed(() =>
-    allocations.value.reduce((sum, a) => sum + fv(monthlyFor(a), rateFor(a.type_name), months.value), 0))
-const modalTotal  = computed(() => allocations.value.reduce((sum, a) => sum + monthlyFor(a), 0) * months.value)
-const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
-
 // Reminder pembayaran cicilan HANYA relevan kalau user benar-benar punya kontrak
-// aktif — tanpa itu tidak ada tagihan apa pun yang perlu diingatkan.
+// aktif — tanpa itu tidak ada tagihan apa pun yang perlu diingatkan. Begitu
+// pembayaran bulan ini tercatat (cicilanPaid dari backend), semua notif hilang.
 const today        = new Date()
 const todayDate    = today.getDate()
 // Bukan selalu 30 hari — Februari/bulan 31-hari bikin hitungan "N hari lagi" meleset kalau dihardcode.
@@ -130,9 +66,10 @@ const daysInMonth  = new Date(today.getFullYear(), today.getMonth() + 1, 0).getD
 const dueDateDay   = computed(() => hasKontrak.value ? new Date(props.aktifKontrak.tanggal_mulai).getDate() : null)
 const daysUntilDue = computed(() => dueDateDay.value === null ? null
     : todayDate <= dueDateDay.value ? dueDateDay.value - todayDate : daysInMonth - todayDate + dueDateDay.value)
-const showReminder = computed(() => hasKontrak.value && todayDate >= 1 && todayDate <= dueDateDay.value + 2)
-const isUrgent     = computed(() => hasKontrak.value && todayDate === dueDateDay.value)
-const isLate       = computed(() => hasKontrak.value && todayDate > dueDateDay.value && todayDate <= dueDateDay.value + 2)
+const belumBayar   = computed(() => hasKontrak.value && !props.cicilanPaid)
+const showReminder = computed(() => belumBayar.value && todayDate >= 1 && todayDate <= dueDateDay.value + 2)
+const isUrgent     = computed(() => belumBayar.value && todayDate === dueDateDay.value)
+const isLate       = computed(() => belumBayar.value && todayDate > dueDateDay.value && todayDate <= dueDateDay.value + 2)
 
 // BEP — hanya berarti kalau ada kontrak aktif dengan bep_per_gram > 0.
 const hargaNow = computed(() => last.value ? Number(last.value.harga_emas) : 0)
@@ -141,6 +78,18 @@ const bepPct   = computed(() => bepTarget.value > 0 ? Math.min(100, Math.round(h
 // Ref ke AuthenticatedLayout — dipakai buat memicu modal "Catat" (dalam mode
 // edit) dari tombol pensil di riwayat, karena modal sekarang tinggal di layout.
 const layoutRef = ref(null)
+
+// Riwayat default hanya bulan berjalan biar dashboard pendek; bulan-bulan lain
+// tetap bisa dibuka lewat toggle. Fallback ke entri terakhir kalau bulan
+// kalender ini belum dicatat, supaya section tidak kosong.
+const bulanBerjalan = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+const showAllRiwayat = ref(false)
+const riwayatTampil = computed(() => {
+    const semua = [...(props.portofolios ?? [])].reverse()
+    if (showAllRiwayat.value) return semua
+    const bulanIni = semua.filter(p => p.bulan === bulanBerjalan)
+    return bulanIni.length ? bulanIni : semua.slice(0, 1)
+})
 
 // Delete modal
 const deleteTarget = ref(null)
@@ -174,22 +123,30 @@ const exportPortofolio = () => {
     <AuthenticatedLayout ref="layoutRef">
         <div class="max-w-lg mx-auto lg:max-w-3xl px-4 py-5 lg:py-8 space-y-3">
 
-            <!-- REMINDER -->
+            <!-- NOTIFIKASI -->
 <Card v-if="isLate" class="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40">
     <CardContent class="p-4 flex gap-3 items-start">
         <AlertCircle :size="22" class="text-red-600 dark:text-red-400 shrink-0 mt-0.5"/>
-        <div>
+        <div class="flex-1">
             <p class="text-sm font-semibold text-red-600 dark:text-red-400">Telat bayar cicilan!</p>
             <p class="text-xs text-red-500 dark:text-red-300/70 mt-0.5">Segera bayar <strong>{{ fmt(cicilanBulanan) }}</strong> — hindari denda!</p>
+            <a :href="route('portofolio.create')"
+                class="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors">
+                <CheckCircle2 :size="13"/> Catat pembayaran
+            </a>
         </div>
     </CardContent>
 </Card>
 <Card v-else-if="isUrgent" class="border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/40">
     <CardContent class="p-4 flex gap-3 items-start">
         <AlertTriangle :size="22" class="text-orange-600 dark:text-orange-400 shrink-0 mt-0.5"/>
-        <div>
+        <div class="flex-1">
             <p class="text-sm font-semibold text-orange-600 dark:text-orange-400">HARI INI jatuh tempo!</p>
             <p class="text-xs text-orange-500 dark:text-orange-300/70 mt-0.5">Bayar <strong>{{ fmt(cicilanBulanan) }}</strong> sekarang!</p>
+            <a :href="route('portofolio.create')"
+                class="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white transition-colors">
+                <CheckCircle2 :size="13"/> Catat pembayaran
+            </a>
         </div>
     </CardContent>
 </Card>
@@ -202,6 +159,35 @@ const exportPortofolio = () => {
         </div>
     </CardContent>
 </Card>
+
+            <!-- EMPTY STATE -->
+            <div v-if="!last" class="text-center py-16">
+                <div class="text-6xl mb-4">🏦</div>
+                <p class="text-lg font-semibold text-zinc-700 dark:text-zinc-200 mb-2">Belum ada data</p>
+                <p class="text-sm text-zinc-500 mb-6">Catat bulan pertama untuk mulai tracking</p>
+                <a :href="route('portofolio.create')"
+                   class="bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-400 active:bg-indigo-600 transition-colors">
+                    Catat sekarang
+                </a>
+            </div>
+
+            <!-- TOTAL PORTOFOLIO -->
+            <Card v-if="last" class="border-indigo-300/60 dark:border-indigo-700/40 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-zinc-900">
+                <CardContent class="p-5">
+                    <p class="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-medium mb-1">Total portofolio</p>
+                    <p class="text-4xl font-bold text-zinc-900 dark:text-white tracking-tight mb-1">{{ fmtJt(totalLast) }}</p>
+                    <div v-if="prev" class="flex items-center gap-1.5 mt-1">
+                        <Badge :class="diff >= 0
+                            ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
+                            : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'"
+                               class="text-xs border">
+                            {{ diff >= 0 ? '▲' : '▼' }} {{ fmt(Math.abs(diff)) }}
+                        </Badge>
+                        <span class="text-xs text-zinc-500">dari bulan lalu</span>
+                    </div>
+                    <p v-else class="text-xs text-zinc-500 mt-1">Bulan pertama — terus semangat! 💪</p>
+                </CardContent>
+            </Card>
 
             <!-- CASHFLOW SUMMARY -->
             <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
@@ -272,110 +258,11 @@ const exportPortofolio = () => {
                 </CardContent>
             </Card>
 
-            <!-- SIMULASI SAVING — kalkulator murni, tidak butuh data portofolio nyata,
-                 jadi selalu tampil baik sudah maupun belum ada data Catat. -->
-<Card class="border-indigo-200 dark:border-indigo-700/30 bg-white dark:bg-zinc-900">
-    <CardHeader class="pb-2 pt-4 px-4">
-        <CardTitle class="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-medium flex items-center gap-1.5">
-            <TrendingUp :size="12"/> Simulasi saving bulanan
-        </CardTitle>
-    </CardHeader>
-    <CardContent class="px-4 pb-4 space-y-3">
-        <div v-if="totalPct > 100" class="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
-            <AlertTriangle :size="12"/> Total {{ totalPct }}% — melebihi 100%
-        </div>
-
-        <!-- Budget -->
-        <div class="flex items-center gap-3">
-            <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
-                <Wallet :size="12" class="text-zinc-400"/> Budget/bln
-            </span>
-            <input type="range" v-model.number="budget" min="2000000" max="6000000" step="100000" class="flex-1 accent-indigo-500 h-1.5">
-            <span class="text-xs font-medium w-28 text-right shrink-0 text-zinc-900 dark:text-white">{{ fmt(budget) }}</span>
-        </div>
-
-        <!-- Alokasi per jenis investasi (Rupiah) -->
-        <div v-for="alloc in allocations" :key="alloc.type_name" class="flex items-center gap-3">
-            <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5 truncate">
-                <TrendingUp :size="12" class="text-indigo-400 shrink-0"/> {{ alloc.type_name }}
-            </span>
-            <input type="range" v-model.number="alloc.pct" min="0" max="100" step="5" class="flex-1 accent-indigo-400 h-1.5">
-            <span class="text-xs font-medium w-28 text-right shrink-0 text-indigo-500 dark:text-indigo-400">{{ alloc.pct }}% · {{ fmt(monthlyFor(alloc)) }}</span>
-        </div>
-
-        <p v-if="!allocations.length" class="text-xs text-zinc-400 text-center py-2">
-            Belum ada jenis investasi ber-Rupiah — tambah lewat halaman Catat.
-        </p>
-
-        <!-- Durasi -->
-        <div class="flex items-center gap-3">
-            <span class="text-xs text-zinc-500 w-28 shrink-0 flex items-center gap-1.5">
-                <Calendar :size="12" class="text-zinc-400"/> Durasi
-            </span>
-            <input type="range" v-model.number="tahun" min="1" max="10" step="1" class="flex-1 accent-zinc-400 h-1.5">
-            <span class="text-xs font-medium w-28 text-right shrink-0 text-zinc-900 dark:text-white">{{ tahun }} tahun</span>
-        </div>
-
-        <!-- Bar alokasi -->
-        <div v-if="allocations.length" class="h-2 rounded-full overflow-hidden flex bg-zinc-200 dark:bg-zinc-800">
-            <div v-for="(alloc, i) in allocations" :key="alloc.type_name"
-                 :style="{ width: alloc.pct + '%' }"
-                 :class="['bg-blue-500','bg-yellow-400','bg-green-500','bg-purple-500','bg-pink-500'][i % 5]"
-                 class="transition-all"></div>
-        </div>
-
-        <!-- KPI hasil -->
-        <div class="grid grid-cols-3 gap-2">
-            <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 text-center">
-                <p class="text-xs text-zinc-500 mb-1">Modal</p>
-                <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ fmtJt(modalTotal) }}</p>
-            </div>
-            <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 text-center">
-                <p class="text-xs text-zinc-500 mb-1">Nilai akhir</p>
-                <p class="text-sm font-semibold text-indigo-500 dark:text-indigo-400">{{ fmtJt(nilaiAkhir) }}</p>
-            </div>
-            <div class="bg-zinc-100 dark:bg-zinc-800 rounded-xl p-3 text-center">
-                <p class="text-xs text-zinc-500 mb-1">Untung</p>
-                <p class="text-sm font-semibold" :class="keuntungan >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'">
-                    {{ keuntungan >= 0 ? '+' : '' }}{{ fmtJt(keuntungan) }}
-                </p>
-            </div>
-        </div>
-    </CardContent>
-</Card>
-
-            <!-- EMPTY STATE -->
-            <div v-if="!last" class="text-center py-16">
-                <div class="text-6xl mb-4">🏦</div>
-                <p class="text-lg font-semibold text-zinc-700 dark:text-zinc-200 mb-2">Belum ada data</p>
-                <p class="text-sm text-zinc-500 mb-6">Catat bulan pertama untuk mulai tracking</p>
-                <a :href="route('portofolio.create')"
-                   class="bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium text-sm hover:bg-indigo-400 active:bg-indigo-600 transition-colors">
-                    Catat sekarang
-                </a>
-            </div>
-
-            <template v-else>
-                <!-- TOTAL PORTOFOLIO -->
-                <Card class="border-indigo-300/60 dark:border-indigo-700/40 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/40 dark:to-zinc-900">
-                    <CardContent class="p-5">
-                        <p class="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-medium mb-1">Total portofolio</p>
-                        <p class="text-4xl font-bold text-zinc-900 dark:text-white tracking-tight mb-1">{{ fmtJt(totalLast) }}</p>
-                        <div v-if="prev" class="flex items-center gap-1.5 mt-1">
-                            <Badge :class="diff >= 0
-                                ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
-                                : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'"
-                                   class="text-xs border">
-                                {{ diff >= 0 ? '▲' : '▼' }} {{ fmt(Math.abs(diff)) }}
-                            </Badge>
-                            <span class="text-xs text-zinc-500">dari bulan lalu</span>
-                        </div>
-                        <p v-else class="text-xs text-zinc-500 mt-1">Bulan pertama — terus semangat! 💪</p>
-                    </CardContent>
-                </Card>
-
-                <!-- KPI GRID -->
-                <div class="grid grid-cols-2 gap-2">
+            <template v-if="last">
+                <!-- RINCIAN ASET -->
+                <div>
+                    <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium mb-3">Rincian aset</p>
+                    <div class="grid grid-cols-2 gap-2">
                     <Card v-if="gramItemOf(last.items)" class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                         <CardContent class="p-3">
                             <p class="text-xs text-zinc-500 mb-1">Total emas</p>
@@ -399,6 +286,7 @@ const exportPortofolio = () => {
                             <p class="text-lg font-semibold text-blue-500 dark:text-blue-400">{{ fmt(findItem(last.items, t.name)?.jumlah ?? 0) }}</p>
                         </CardContent>
                     </Card>
+                    </div>
                 </div>
 
                 <!-- BEP PROGRESS -->
@@ -429,7 +317,7 @@ const exportPortofolio = () => {
                 <!-- ALOKASI -->
                 <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardHeader class="pb-2 pt-4 px-4">
-                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Alokasi {{ last.bulan }}</CardTitle>
+                        <CardTitle class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Alokasi bulan berjalan · {{ last.bulan }}</CardTitle>
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-2.5">
     <div v-if="hasKontrak" class="flex justify-between text-sm items-center">
@@ -458,13 +346,19 @@ const exportPortofolio = () => {
                 <!-- RIWAYAT -->
                 <div>
                     <div class="flex items-center justify-between mb-3">
-                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">Riwayat semua bulan</p>
-                        <button @click="exportPortofolio"
-                            class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                            <Download :size="12"/> Export CSV
-                        </button>
+                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">{{ showAllRiwayat ? 'Riwayat semua bulan' : 'Riwayat bulan berjalan' }}</p>
+                        <div class="flex items-center gap-2">
+                            <button v-if="portofolios.length > 1" @click="showAllRiwayat = !showAllRiwayat"
+                                class="text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                {{ showAllRiwayat ? 'Bulan berjalan' : `Semua bulan (${portofolios.length})` }}
+                            </button>
+                            <button @click="exportPortofolio"
+                                class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                                <Download :size="12"/> Export CSV
+                            </button>
+                        </div>
                     </div>
-                    <div v-for="item in [...portofolios].reverse()" :key="item.id" class="mb-2">
+                    <div v-for="item in riwayatTampil" :key="item.id" class="mb-2">
                         <Card class="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
                             <CardContent class="p-4">
                                 <div class="flex justify-between items-center mb-3">

@@ -131,35 +131,42 @@ function buildCharts() {
         }
     })
 
-    emasChart = new Chart(chartEmas.value, {
-        type: 'bar',
-        data: { labels, datasets: [{
-            label: 'Gram', data: grams,
-            backgroundColor: 'rgba(234,179,8,0.7)', borderColor: '#eab308',
-            borderWidth: 1, borderRadius: 6, borderSkipped: false,
-        }]},
-        options: { ...chartOpts(v => v+'g'),
-            plugins: { legend: { display: false },
-                tooltip: { callbacks: { label: ctx => ' '+ctx.parsed.y+'g' } }
+    // Chart 3 & 4 dibungkus v-if (lastGramItem / rupiahTypes.length) di template —
+    // kalau kondisinya false, canvas-nya tidak pernah dirender dan ref-nya tetap
+    // null, jadi harus dicek dulu di sini supaya tidak new Chart(null, ...).
+    if (chartEmas.value) {
+        emasChart = new Chart(chartEmas.value, {
+            type: 'bar',
+            data: { labels, datasets: [{
+                label: 'Gram', data: grams,
+                backgroundColor: 'rgba(234,179,8,0.7)', borderColor: '#eab308',
+                borderWidth: 1, borderRadius: 6, borderSkipped: false,
+            }]},
+            options: { ...chartOpts(v => v+'g'),
+                plugins: { legend: { display: false },
+                    tooltip: { callbacks: { label: ctx => ' '+ctx.parsed.y+'g' } }
+                }
             }
-        }
-    })
+        })
+    }
 
-    investChart = new Chart(chartInvest.value, {
-        type: 'bar',
-        data: { labels, datasets: investDatasets },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: true, position: 'bottom',
-                labels: { color: txtC, boxWidth: 10, font: { size: 11 } } },
-                tooltip: { callbacks: { label: ctx => ' '+fmt(ctx.parsed.y) } }
-            },
-            scales: {
-                x: { stacked: true, grid: { display: false }, ticks: { color: txtC, font: { size: 11 } } },
-                y: { stacked: true, grid: { color: gridC }, ticks: { color: txtC, callback: v => fmtJt(v) } }
+    if (chartInvest.value) {
+        investChart = new Chart(chartInvest.value, {
+            type: 'bar',
+            data: { labels, datasets: investDatasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'bottom',
+                    labels: { color: txtC, boxWidth: 10, font: { size: 11 } } },
+                    tooltip: { callbacks: { label: ctx => ' '+fmt(ctx.parsed.y) } }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false }, ticks: { color: txtC, font: { size: 11 } } },
+                    y: { stacked: true, grid: { color: gridC }, ticks: { color: txtC, callback: v => fmtJt(v) } }
+                }
             }
-        }
-    })
+        })
+    }
 }
 
 onMounted(buildCharts)
