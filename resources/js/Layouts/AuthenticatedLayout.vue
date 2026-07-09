@@ -96,6 +96,11 @@ function itemsFromTypes(types, existingItems) {
 }
 
 async function openCatat(id = null) {
+    // Terima hanya id numerik. @click="openCatat" (tanpa tanda kurung) pernah
+    // mengirim objek event klik sebagai id — terserialisasi oleh Ziggy jadi
+    // ?id[isTrusted]=1&id[_vts]=... lalu 404, dan modal menampilkan "Gagal
+    // memuat data" untuk SEMUA klik FAB di produksi.
+    if (typeof id !== 'number' && typeof id !== 'string') id = null
     lastRequestedId.value = id
     showCatatModal.value = true
     loadingContext.value = true
@@ -333,7 +338,7 @@ defineExpose({ openCatat })
                         </Link>
 
                         <!-- CATAT FAB -->
-                        <button @click="openCatat"
+                        <button @click="openCatat()"
                             class="flex flex-col items-center gap-1 px-3 pb-1 rounded-xl transition-all duration-200 group relative">
                             <div class="w-12 h-10 flex items-center justify-center rounded-2xl bg-indigo-500 shadow-lg shadow-indigo-500/30 -mt-5 transition-transform active:scale-95">
                                 <CirclePlus :size="22" stroke-width="2.5" class="text-white" />
