@@ -1,9 +1,20 @@
+# resources/js/app.js mengimpor ZiggyVue dari vendor/tightenco/ziggy, jadi
+# vendor harus sudah ada SEBELUM `npm run build` — tahap ini menyediakannya
+# tanpa menjalankan script artisan (belum ada source app lengkap di sini).
+FROM composer:2 AS composer-deps
+
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
+
+
 FROM node:20-alpine AS node-builder
 
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+COPY --from=composer-deps /app/vendor ./vendor
 RUN npm run build
 
 
