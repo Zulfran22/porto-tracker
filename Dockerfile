@@ -5,7 +5,10 @@ FROM composer:2 AS composer-deps
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
+# Retry sekali: build server Render berbagi IP dan sering kena HTTP 429 dari
+# codeload.github.com — jeda 30 detik biasanya cukup untuk lolos rate limit.
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs \
+    || (sleep 30 && composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs)
 
 
 FROM node:20-alpine AS node-builder
@@ -44,9 +47,15 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 COPY . .
+COPY --from=composer-deps /app/vendor ./vendor
 COPY --from=node-builder /app/public/build ./public/build
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# vendor/ dipakai ulang dari stage composer-deps — TIDAK ada unduhan GitHub di
+# sini. Sebelumnya `composer install` penuh dijalankan lagi dan mati kena
+# HTTP 429 (rate limit codeload.github.com di IP bersama Render).
+# dump-autoload tetap memicu post-autoload-dump (package:discover) via
+# script di composer.json.
+RUN composer dump-autoload --optimize --no-dev
 
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
