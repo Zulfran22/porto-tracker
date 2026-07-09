@@ -88,9 +88,12 @@ function monthlyFor(alloc) {
     return Math.round(sisa.value * alloc.pct / 100)
 }
 
-// Asumsi return tahunan per jenis investasi — dikenal untuk 3 default, jatuh
-// ke 8% generik untuk jenis custom yang tidak punya data historis.
-const DEFAULT_RATES = { 'Dana Darurat': 0.05, 'Reksa Dana': 0.11, 'SBN': 0.065 }
+// Asumsi return tahunan per jenis investasi — dikenal untuk 4 default, jatuh
+// ke 8% generik untuk jenis custom yang tidak punya data historis. Emas
+// dapat entri eksplisit (asumsi apresiasi harga ~10%/thn dalam Rupiah,
+// kisaran historis dekade terakhir) — sebelumnya dia tak sengaja jatuh ke
+// fallback 8% seolah deposito, bukan asumsi yang sadar.
+const DEFAULT_RATES = { 'Emas Tunai': 0.10, 'Dana Darurat': 0.05, 'Reksa Dana': 0.11, 'SBN': 0.065 }
 function rateFor(name) {
     return DEFAULT_RATES[name] ?? 0.08
 }
