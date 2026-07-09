@@ -183,6 +183,9 @@ const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
                     <div v-if="totalPct > 100" class="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                         <AlertTriangle :size="12"/> Total {{ totalPct }}% — melebihi 100%
                     </div>
+                    <div v-else-if="totalPct < 100" class="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                        <Info :size="12"/> Total {{ totalPct }}% — {{ 100 - totalPct }}% ({{ fmt(sisa * (100 - totalPct) / 100) }}) belum dialokasikan
+                    </div>
 
                     <!-- Budget -->
                     <div>

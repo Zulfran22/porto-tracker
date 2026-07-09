@@ -18,9 +18,12 @@ const props = defineProps({
     aktifKontrak:  { type: Object, default: null },
 })
 
-// Cuma pre-fill dari kontrak aktif yang benar-benar tercatat — kalau belum ada,
-// biarkan kosong (bukan angka contoh) supaya tidak ketubruk tersimpan sebagai data asli.
-const cicilanDefault = props.aktifKontrak ? Number(props.aktifKontrak.angsuran_bulan) : ''
+// Pre-fill cicilan HANYA saat datang dari tombol "Catat pembayaran" di notif
+// jatuh tempo (?bayar=1). Kalau selalu terisi otomatis, mencatat portofolio
+// di awal bulan diam-diam menandai cicilan "sudah dibayar" — notif jatuh
+// tempo bulan itu tidak pernah muncul dan user bisa kelupaan bayar beneran.
+const viaBayar = new URLSearchParams(window.location.search).has('bayar')
+const cicilanDefault = (viaBayar && props.aktifKontrak) ? Number(props.aktifKontrak.angsuran_bulan) : ''
 const tenorEndLabel  = props.aktifKontrak
     ? new Date(props.aktifKontrak.tanggal_selesai).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
     : null

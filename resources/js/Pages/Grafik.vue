@@ -204,7 +204,7 @@ onBeforeUnmount(destroyCharts)
                                 :class="growthPct >= 0
                                     ? 'bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-400 dark:border-green-700'
                                     : 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-400 dark:border-red-700'">
-                                {{ growthPct >= 0 ? '▲' : '▼' }} {{ Math.abs(growthPct) }}% sejak awal
+                                {{ growthPct >= 0 ? '▲' : '▼' }} {{ Math.abs(growthPct) }}% sejak {{ first?.bulan }}
                             </Badge>
                         </CardContent>
                     </Card>

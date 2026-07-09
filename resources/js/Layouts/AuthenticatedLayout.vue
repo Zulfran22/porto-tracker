@@ -130,7 +130,11 @@ async function openCatat(id = null) {
 
         catatForm.bulan      = data.bulan
         catatForm.harga_emas = p ? p.harga_emas : (data.lastHargaEmas ?? '')
-        catatForm.cicilan    = p ? p.cicilan : (data.aktifKontrak ? Number(data.aktifKontrak.angsuran_bulan) : '')
+        // Tidak di-pre-fill dari kontrak (hanya nilai tersimpan saat edit) —
+        // cicilan terisi otomatis membuat notif jatuh tempo mati diam-diam
+        // begitu user mencatat bulan berjalan. Pre-fill khusus ada di halaman
+        // Catat via tombol "Catat pembayaran" (?bayar=1).
+        catatForm.cicilan    = p ? p.cicilan : ''
         catatForm.catatan    = p ? (p.catatan ?? '') : ''
         catatForm.items      = itemsFromTypes(modalInvestmentTypes.value, p?.items)
     } catch {

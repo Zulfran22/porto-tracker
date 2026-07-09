@@ -92,6 +92,9 @@ const layoutRef = ref(null)
 // kalender ini belum dicatat, supaya section tidak kosong.
 const bulanBerjalan = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 const showAllRiwayat = ref(false)
+// Judul jujur: fallback "entri terakhir" bukan bulan berjalan — jangan
+// menampilkan data Juni di bawah judul "bulan berjalan" saat sudah Juli.
+const riwayatAdaBulanIni = computed(() => (props.portofolios ?? []).some(p => p.bulan === bulanBerjalan))
 const riwayatTampil = computed(() => {
     const semua = [...(props.portofolios ?? [])].reverse()
     if (showAllRiwayat.value) return semua
@@ -138,7 +141,7 @@ const exportPortofolio = () => {
         <div class="flex-1">
             <p class="text-sm font-semibold text-red-600 dark:text-red-400">Telat bayar cicilan!</p>
             <p class="text-xs text-red-500 dark:text-red-300/70 mt-0.5">Segera bayar <strong>{{ fmt(cicilanBulanan) }}</strong> — hindari denda!</p>
-            <a :href="route('portofolio.create')"
+            <a :href="route('portofolio.create') + '?bayar=1'"
                 class="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors">
                 <CheckCircle2 :size="13"/> Catat pembayaran
             </a>
@@ -151,7 +154,7 @@ const exportPortofolio = () => {
         <div class="flex-1">
             <p class="text-sm font-semibold text-orange-600 dark:text-orange-400">HARI INI jatuh tempo!</p>
             <p class="text-xs text-orange-500 dark:text-orange-300/70 mt-0.5">Bayar <strong>{{ fmt(cicilanBulanan) }}</strong> sekarang!</p>
-            <a :href="route('portofolio.create')"
+            <a :href="route('portofolio.create') + '?bayar=1'"
                 class="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white transition-colors">
                 <CheckCircle2 :size="13"/> Catat pembayaran
             </a>
@@ -254,7 +257,7 @@ const exportPortofolio = () => {
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-zinc-500">Saving rate</span>
                         <span class="font-semibold" :class="cashSavePct >= 20 ? 'text-green-600 dark:text-green-400' : cashSavePct >= 0 ? 'text-orange-500 dark:text-orange-400' : 'text-red-600 dark:text-red-400'">
-                            {{ cashSavePct >= 0 ? '+' : '' }}{{ cashSavePct }}%
+                            {{ cashIncome > 0 ? (cashSavePct >= 0 ? '+' : '') + cashSavePct + '%' : '—' }}
                         </span>
                     </div>
 
@@ -354,7 +357,7 @@ const exportPortofolio = () => {
                 <!-- RIWAYAT -->
                 <div>
                     <div class="flex items-center justify-between mb-3">
-                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">{{ showAllRiwayat ? 'Riwayat semua bulan' : 'Riwayat bulan berjalan' }}</p>
+                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-medium">{{ showAllRiwayat ? 'Riwayat semua bulan' : (riwayatAdaBulanIni ? 'Riwayat bulan berjalan' : 'Riwayat terakhir') }}</p>
                         <div class="flex items-center gap-2">
                             <button v-if="portofolios.length > 1" @click="showAllRiwayat = !showAllRiwayat"
                                 class="text-xs px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
