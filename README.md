@@ -81,7 +81,7 @@ is ephemeral and Render's own free Postgres is deleted after 30 days, so state l
 |---|---|---|
 | Database | [Neon](https://neon.tech) free Postgres (`DB_URL`) | Permanent free tier (unlike Render's 30-day expiry); auto-suspends when idle, wakes in ~1s |
 | Uploaded contract files | [Backblaze B2](https://www.backblaze.com/cloud-storage) via the `s3` disk (`UPLOADS_DISK=s3`) | Container disk is wiped on every deploy/sleep cycle; B2 gives 10GB free with no card |
-| Daily scheduler | [cron-job.org](https://cron-job.org) → `/cron/recurring-apply?token=...` | `schedule:work` sleeps whenever the instance sleeps |
+| Daily scheduler | GitHub Actions (`.github/workflows/keepalive.yml` + `daily-recurring.yml`) | Keep-alive pings keep `schedule:work` running; a tokenized webhook call is the backup |
 
 For the production env vars, start from `.env.production.example` (already sets `APP_DEBUG=false`,
 `SESSION_SECURE_COOKIE=true`, Neon/B2/cron placeholders, etc.) rather than `.env.example`.
@@ -92,9 +92,10 @@ For the production env vars, start from `.env.production.example` (already sets 
 
 - **Create the B2 bucket and set `UPLOADS_DISK=s3` + `AWS_*`.** Without it, uploaded contract
   documents silently vanish on the next redeploy or sleep-wake cycle.
-- **Register the cron-job.org job** hitting `/cron/recurring-apply?token=<CRON_TOKEN>` daily at
-  00:05 WIB — otherwise recurring transactions are only applied when someone presses the manual
-  button.
+- **Add the `CRON_TOKEN` repo secret** (Settings → Secrets and variables → Actions) so the
+  `daily-recurring.yml` backup webhook works. Without it, the daily job relies solely on the
+  in-container scheduler staying awake via `keepalive.yml`. An external pinger
+  ([cron-job.org](https://cron-job.org)) is a sturdier alternative if Actions cron proves flaky.
 - **Mail must point at a real SMTP provider.** With `MAIL_MAILER=log` the password-reset flow
   looks like it works but no email is ever sent — see the commented SMTP block in
   `.env.production.example`.
