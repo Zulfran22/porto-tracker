@@ -36,9 +36,9 @@ return new class extends Migration
             foreach ($rows as $row) {
                 $t = DB::table('investment_targets')->where('user_id', $row->user_id)->get()->keyBy('type_name');
                 DB::table('targets')->where('id', $row->id)->update([
-                    'target_emas'    => $t['Emas Tunai']->target_value ?? 10,
+                    'target_emas' => $t['Emas Tunai']->target_value ?? 10,
                     'target_darurat' => $t['Dana Darurat']->target_value ?? 18000000,
-                    'target_reksa'   => $t['Reksa Dana']->target_value ?? 50000000,
+                    'target_reksa' => $t['Reksa Dana']->target_value ?? 50000000,
                 ]);
             }
         });

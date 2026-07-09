@@ -59,10 +59,10 @@ return new class extends Migration
             foreach ($rows as $row) {
                 $items = DB::table('portfolio_items')->where('portofolio_id', $row->id)->get()->keyBy('type_name');
                 DB::table('portofolios')->where('id', $row->id)->update([
-                    'emas_gram'    => $items['Emas Tunai']->gram ?? 0,
+                    'emas_gram' => $items['Emas Tunai']->gram ?? 0,
                     'dana_darurat' => $items['Dana Darurat']->jumlah ?? 0,
-                    'reksa_dana'   => $items['Reksa Dana']->jumlah ?? 0,
-                    'sbn'          => $items['SBN']->jumlah ?? 0,
+                    'reksa_dana' => $items['Reksa Dana']->jumlah ?? 0,
+                    'sbn' => $items['SBN']->jumlah ?? 0,
                 ]);
             }
         });

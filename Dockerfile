@@ -42,6 +42,10 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 
 EXPOSE 8000
 
+# `php artisan serve` wraps PHP's built-in server, which is single-process
+# unless this is set — without it one slow request blocks every other request.
+ENV PHP_CLI_SERVER_WORKERS=4
+
 # schedule:work runs Laravel's scheduler in a loop (no system cron available
 # on this platform) — backgrounded so it runs alongside the web server;
 # needed for the daily recurring-transactions job in routes/console.php.

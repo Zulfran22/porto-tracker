@@ -84,8 +84,18 @@ For a production `.env`, start from `.env.production.example` (already sets `APP
 force-disables debug mode and forces a secure session cookie whenever `APP_ENV=production`, as a
 safety net against a misconfigured environment.
 
-Every deploy runs `php artisan migrate --force` — there is no automated backup step; verify your
-host's database backup story independently before relying on this in production.
+### Pre-publish checklist
+
+- **Uploaded files need a persistent volume.** Contract documents live on the `local` disk
+  (`storage/app/private`), and Railway's container filesystem is ephemeral — attach a Railway
+  Volume mounted at `/app/storage/app`, or every redeploy silently deletes user uploads.
+- **Mail must point at a real SMTP provider.** With `MAIL_MAILER=log` the password-reset flow
+  looks like it works but no email is ever sent — see the commented SMTP block in
+  `.env.production.example`.
+- **Set `SENTRY_LARAVEL_DSN`.** The integration is wired up but no-ops without a DSN, leaving
+  production exceptions visible only to someone tailing logs.
+- **Verify database backups.** Every deploy runs `php artisan migrate --force` and there is no
+  automated backup step — confirm the host's backup story independently.
 
 ## Architecture notes
 
