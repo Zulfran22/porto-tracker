@@ -102,7 +102,18 @@ async function openCatat(id = null) {
     contextError.value = ''
     catatForm.clearErrors()
     try {
-        const res = await fetch(id ? route('catat.context', { id }) : route('catat.context'))
+        // Accept: application/json penting — tanpa itu, sesi yang kedaluwarsa
+        // dibalas redirect ke halaman login (HTML), fetch mengikutinya, dan
+        // res.json() gagal dengan pesan generik yang menyesatkan. Dengan
+        // header ini Laravel membalas 401 yang bisa dikenali.
+        const res = await fetch(id ? route('catat.context', { id }) : route('catat.context'), {
+            headers: { Accept: 'application/json' },
+        })
+        if (res.status === 401 || res.status === 419) {
+            contextError.value = 'Sesi login berakhir — memuat ulang halaman…'
+            window.location.reload()
+            return
+        }
         if (!res.ok) throw new Error('catat-context request failed')
         const data = await res.json()
         const p = data.existing

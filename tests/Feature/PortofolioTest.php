@@ -262,6 +262,26 @@ class PortofolioTest extends TestCase
         $response->assertOk()->assertJson(['bulan' => now()->format('Y-m'), 'existing' => null]);
     }
 
+    public function test_catat_context_seeds_default_investment_types_for_fresh_user(): void
+    {
+        // Akun baru bisa membuka modal Catat (FAB) sebelum pernah ke dashboard —
+        // endpoint ini harus ikut men-seed jenis investasi default, kalau tidak
+        // form modalnya kosong tanpa field sama sekali.
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson('/api/catat-context');
+
+        $response->assertOk();
+        $this->assertCount(4, $response->json('investmentTypes'));
+    }
+
+    public function test_catat_context_returns_401_json_for_guests(): void
+    {
+        // Kontrak yang diandalkan modal Catat: sesi kedaluwarsa dijawab 401 JSON
+        // (bukan redirect HTML) supaya frontend bisa memuat ulang ke halaman login.
+        $this->getJson('/api/catat-context')->assertUnauthorized();
+    }
+
     public function test_catat_context_with_id_returns_that_specific_month_for_editing(): void
     {
         $user = User::factory()->create();

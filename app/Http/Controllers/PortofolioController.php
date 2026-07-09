@@ -95,6 +95,11 @@ class PortofolioController extends Controller
     {
         $userId = auth()->id();
 
+        // Akun baru bisa membuka modal Catat (FAB) sebelum pernah mampir ke
+        // dashboard — tanpa ini, investmentTypes kosong dan form-nya tak berisi
+        // field apa pun.
+        InvestmentType::ensureDefaultsFor($userId);
+
         if ($request->filled('id')) {
             $existing = Portofolio::with('items')->where('user_id', $userId)->findOrFail($request->id);
             $bulan = $existing->bulan;
