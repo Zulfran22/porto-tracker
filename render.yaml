@@ -1,0 +1,68 @@
+# Render Blueprint — deploy via dashboard: New → Blueprint → pilih repo ini.
+# Web service free tier (tanpa kartu kredit): tidur setelah 15 menit idle,
+# cold start 30-60 detik saat bangun. Database di Neon (Postgres gratis
+# permanen) dan file upload di Backblaze B2 — JANGAN pakai Postgres/disk
+# Render free (database-nya dihapus setelah 30 hari, disk tidak tersedia).
+# Nilai sync:false akan diminta di dashboard saat blueprint dibuat.
+services:
+  - type: web
+    name: wealtid
+    runtime: docker
+    plan: free
+    healthCheckPath: /up
+    autoDeploy: true
+    envVars:
+      - key: APP_NAME
+        value: WealthID
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_STACK
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        sync: false
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: UPLOADS_DISK
+        value: s3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_DEFAULT_REGION
+        sync: false
+      - key: AWS_BUCKET
+        sync: false
+      - key: AWS_ENDPOINT
+        sync: false
+      - key: AWS_USE_PATH_STYLE_ENDPOINT
+        value: "true"
+      - key: MAIL_MAILER
+        value: log
+      - key: PHP_CLI_SERVER_WORKERS
+        value: "4"
+      - key: GOLD_PEGADAIAN_MARKUP
+        value: "1.04"
+      - key: GOLD_FALLBACK_XAU_PRICE
+        value: "3280"
+      - key: SENTRY_LARAVEL_DSN
+        sync: false
+      - key: CRON_TOKEN
+        sync: false

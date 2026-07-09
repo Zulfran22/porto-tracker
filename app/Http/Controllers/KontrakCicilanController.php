@@ -20,8 +20,9 @@ class KontrakCicilanController extends Controller
         ]);
     }
 
-    // Semua akses file kontrak lewat disk ini — 'local' di dev/test, 's3' (R2)
-    // di produksi yang filesystem-nya ephemeral. Lihat config/filesystems.php.
+    // Semua akses file kontrak lewat disk ini — 'local' di dev/test, 's3'
+    // (Backblaze B2) di produksi yang filesystem-nya ephemeral.
+    // Lihat config/filesystems.php.
     private function uploadsDisk(): string
     {
         return config('filesystems.uploads');

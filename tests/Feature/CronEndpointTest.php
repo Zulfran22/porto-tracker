@@ -8,7 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 // Webhook /cron/recurring-apply menggantikan schedule:work di host free-tier
-// yang scale-to-zero (Koyeb) — dipanggil harian oleh cron-job.org dengan token.
+// yang tidur saat idle (Render) — dipanggil harian oleh cron-job.org dengan token.
 class CronEndpointTest extends TestCase
 {
     use RefreshDatabase;

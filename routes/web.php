@@ -36,7 +36,7 @@ Route::post('/onboarding/continue', function (Request $request) {
 })->middleware('guest')->name('onboarding.continue');
 
 // Pemicu eksternal job harian recurring:apply — di host free-tier yang
-// scale-to-zero (Koyeb), schedule:work ikut tidur bersama container sehingga
+// tidur saat idle (Render), schedule:work ikut tidur bersama container sehingga
 // jadwal 00:05 bisa terlewat. cron-job.org memanggil URL ini tiap hari;
 // command-nya idempoten (yang sudah diterapkan hari ini dilewati), jadi aman
 // terpanggil dobel dengan scheduler internal saat container kebetulan bangun.

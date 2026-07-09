@@ -21,9 +21,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Disk tempat file yang di-upload user (dokumen kontrak) disimpan. Default
-    | 'local' untuk dev/test. Di host tanpa filesystem persisten (Koyeb —
+    | 'local' untuk dev/test. Di host tanpa filesystem persisten (Render —
     | container-nya ephemeral) set UPLOADS_DISK=s3 dan arahkan kredensial
-    | AWS_* ke bucket S3-compatible (Cloudflare R2), kalau tidak file upload
+    | AWS_* ke bucket S3-compatible (Backblaze B2), kalau tidak file upload
     | hilang setiap redeploy/restart.
     |
     */

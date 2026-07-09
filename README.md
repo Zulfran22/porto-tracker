@@ -63,34 +63,35 @@ Active recurring transactions are applied automatically once a day (`recurring:a
 `dailyAt('00:05')` in `routes/console.php`). The "Terapkan Bulan Ini" button in Keuangan is a manual
 on-demand trigger for the same idempotent logic (`app/Actions/ApplyRecurringTransactions.php`).
 
-In production the app runs on Koyeb's free instance, which **scales to zero after ~1 hour idle** —
+In production the app runs on Render's free web service, which **sleeps after 15 minutes idle** —
 `schedule:work` sleeps with the container, so the 00:05 run can be missed. The reliable trigger is
 the tokenized webhook `GET /cron/recurring-apply?token=...` (`CRON_TOKEN` env), called daily by an
 external cron service (cron-job.org). The command is idempotent, so the webhook and the internal
 scheduler can safely fire on the same day.
 
-## Deployment (Koyeb + Neon + Cloudflare R2 — all free tiers)
+## Deployment (Render + Neon + Backblaze B2 — all free tiers, no credit card)
 
-The app deploys to [Koyeb](https://www.koyeb.com) from GitHub using the repo's `Dockerfile`
-(free instance: 0.1 vCPU / 512MB, scale-to-zero after idle, cold start of a few seconds). The
-container filesystem is ephemeral and Koyeb's free Postgres is capped at 5 compute hours/month,
-so state lives elsewhere:
+The app deploys to [Render](https://render.com) from GitHub via `render.yaml`
+(dashboard → New → Blueprint). The free web service sleeps after 15 minutes idle (cold start
+30–60s on wake; an optional cron-job.org ping to `/up` every 10 minutes keeps it awake —
+Render's 750 free instance hours/month cover one always-on service). The container filesystem
+is ephemeral and Render's own free Postgres is deleted after 30 days, so state lives elsewhere:
 
 | Concern | Where | Why |
 |---|---|---|
 | Database | [Neon](https://neon.tech) free Postgres (`DB_URL`) | Permanent free tier (unlike Render's 30-day expiry); auto-suspends when idle, wakes in ~1s |
-| Uploaded contract files | [Cloudflare R2](https://developers.cloudflare.com/r2/) via the `s3` disk (`UPLOADS_DISK=s3`) | Container disk is wiped on every deploy/scale-to-zero |
-| Daily scheduler | [cron-job.org](https://cron-job.org) → `/cron/recurring-apply?token=...` | `schedule:work` sleeps whenever the instance scales to zero |
+| Uploaded contract files | [Backblaze B2](https://www.backblaze.com/cloud-storage) via the `s3` disk (`UPLOADS_DISK=s3`) | Container disk is wiped on every deploy/sleep cycle; B2 gives 10GB free with no card |
+| Daily scheduler | [cron-job.org](https://cron-job.org) → `/cron/recurring-apply?token=...` | `schedule:work` sleeps whenever the instance sleeps |
 
 For the production env vars, start from `.env.production.example` (already sets `APP_DEBUG=false`,
-`SESSION_SECURE_COOKIE=true`, Neon/R2/cron placeholders, etc.) rather than `.env.example`.
+`SESSION_SECURE_COOKIE=true`, Neon/B2/cron placeholders, etc.) rather than `.env.example`.
 `AppServiceProvider` also force-disables debug mode and forces a secure session cookie whenever
 `APP_ENV=production`, as a safety net against a misconfigured environment.
 
 ### Pre-publish checklist
 
-- **Create the R2 bucket and set `UPLOADS_DISK=s3` + `AWS_*`.** Without it, uploaded contract
-  documents silently vanish on the next redeploy or scale-to-zero cycle.
+- **Create the B2 bucket and set `UPLOADS_DISK=s3` + `AWS_*`.** Without it, uploaded contract
+  documents silently vanish on the next redeploy or sleep-wake cycle.
 - **Register the cron-job.org job** hitting `/cron/recurring-apply?token=<CRON_TOKEN>` daily at
   00:05 WIB — otherwise recurring transactions are only applied when someone presses the manual
   button.

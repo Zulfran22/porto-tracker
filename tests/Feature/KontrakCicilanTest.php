@@ -253,7 +253,7 @@ class KontrakCicilanTest extends TestCase
 
     public function test_file_kontrak_mengikuti_disk_upload_yang_dikonfigurasi(): void
     {
-        // Di produksi (Koyeb) UPLOADS_DISK=s3 (Cloudflare R2) karena filesystem
+        // Di produksi (Render) UPLOADS_DISK=s3 (Backblaze B2) karena filesystem
         // container ephemeral — pastikan seluruh siklus (upload, download,
         // hapus) benar-benar memakai disk dari config, bukan 'local' hardcoded.
         config(['filesystems.uploads' => 's3']);
