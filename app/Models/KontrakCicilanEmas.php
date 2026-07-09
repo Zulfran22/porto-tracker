@@ -36,7 +36,7 @@ class KontrakCicilanEmas extends Model
         'biaya_admin' => 'integer',
     ];
 
-    protected $appends = ['bep_per_gram'];
+    protected $appends = ['bep_per_gram', 'gram_terbayar'];
 
     public function user(): BelongsTo
     {
@@ -49,6 +49,28 @@ class KontrakCicilanEmas extends Model
             ->where('status', 'aktif')
             ->orderBy('tanggal_mulai', 'desc')
             ->first();
+    }
+
+    // Estimasi gram yang sudah menjadi hak user berdasarkan angsuran berjalan.
+    // Aplikasi tidak mencatat pembayaran per angsuran, jadi dipakai proxy
+    // jadwal: angsuran pertama dianggap dibayar saat kontrak dimulai, lalu
+    // bertambah satu tiap bulan, dibatasi tenor. Dipakai oleh
+    // Portofolio::getTotalAttribute dan tampilan Total emas/Target — supaya
+    // total portofolio mencerminkan porsi yang benar-benar terbayar, bukan
+    // seluruh gram kontrak sejak hari pertama (aset menggelembung, sisa
+    // kewajiban diabaikan).
+    public function getGramTerbayarAttribute(): float
+    {
+        if ($this->tenor_bulan <= 0 || $this->total_gram <= 0) {
+            return 0.0;
+        }
+
+        $angsuranTerbayar = min(
+            $this->tenor_bulan,
+            max(0, (int) floor($this->tanggal_mulai->diffInMonths(now())) + 1)
+        );
+
+        return round($this->total_gram * $angsuranTerbayar / $this->tenor_bulan, 4);
     }
 
     // Harga breakeven per gram: total biaya kontrak (angsuran selama tenor + sewa modal + biaya admin) dibagi total gram

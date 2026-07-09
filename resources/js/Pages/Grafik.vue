@@ -32,7 +32,8 @@ const rupiahTypes = computed(() => props.investmentTypes.filter(t => t.unit === 
 // Gram/BEP cicilan hanya berarti kalau user benar-benar punya kontrak aktif —
 // tanpa itu 0, bukan menebak pakai kontrak siapa pun.
 const hasKontrak  = computed(() => !!props.aktifKontrak)
-const cicilanGram = computed(() => hasKontrak.value ? Number(props.aktifKontrak.total_gram) : 0)
+// gram_terbayar (bukan total_gram) — konsisten dengan total di backend.
+const cicilanGram = computed(() => hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0)
 const bepTarget   = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 
 // Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber

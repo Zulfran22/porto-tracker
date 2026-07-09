@@ -47,17 +47,23 @@ const saveTarget = () => form.put(route('target.update'))
 // Gram & angsuran cicilan hanya berarti kalau user benar-benar punya kontrak
 // aktif tercatat — tanpa itu 0, bukan menebak pakai kontrak siapa pun.
 const hasKontrak     = computed(() => !!props.aktifKontrak)
-const cicilanGram    = computed(() => hasKontrak.value ? Number(props.aktifKontrak.total_gram) : 0)
+// gram_terbayar (bukan total_gram) — progress target gram hanya menghitung
+// porsi kontrak yang sudah diangsur, konsisten dengan total portofolio.
+const cicilanGram    = computed(() => hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0)
+const cicilanBulanan = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 
 // Tanpa data portofolio, harga emas belum diketahui — jangan menebak angka, tampilkan "belum ada data".
 const HARGA_EMAS = computed(() => last.value ? Number(last.value.harga_emas) : null)
 
-// Estimasi "saving/bln" & "est. tercapai" di halaman ini pakai split rata budget
-// ke SEMUA jenis investasi (termasuk emas) — beda dari simulator di Dashboard yang
-// sengaja cuma mencakup jenis ber-Rupiah (emas butuh konversi harga/gram tersendiri).
+// Estimasi "saving/bln" & "est. tercapai": budget dikurangi cicilan dulu
+// (konsisten dengan "sisa" di simulator halaman Info), lalu split rata ke
+// semua jenis investasi. Persentase alokasi custom di Info tidak dipersist,
+// jadi split rata adalah aproksimasi terbaik yang tersedia di sini.
 const budgetBulanan = computed(() => Number(props.target?.budget_bulanan ?? DEFAULT_BUDGET))
 const perTypeBulanan = computed(() =>
-    form.targets.length > 0 ? Math.round(budgetBulanan.value / form.targets.length) : 0)
+    form.targets.length > 0
+        ? Math.round(Math.max(0, budgetBulanan.value - cicilanBulanan.value) / form.targets.length)
+        : 0)
 
 function sekarangUntuk(t) {
     if (!last.value) return t.unit === 'gram' ? cicilanGram.value : 0

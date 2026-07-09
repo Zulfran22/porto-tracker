@@ -29,8 +29,11 @@ const cicilanGram    = computed(() => hasKontrak.value ? Number(props.aktifKontr
 const cicilanBulanan = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 const bepTarget      = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 const hargaSekarang  = computed(() => props.lastHargaEmas)
+// "Perlu naik X%" relatif ke HARGA SEKARANG (bukan ke BEP) — penyebut BEP
+// dulu bikin angkanya jauh terlalu optimis (mis. tampil 54% padahal harga
+// harus naik 117% untuk menyentuh BEP).
 const bepGap         = computed(() => (hasKontrak.value && bepTarget.value > 0 && hargaSekarang.value)
-    ? Math.max(0, Math.round((bepTarget.value - hargaSekarang.value) / bepTarget.value * 1000) / 10)
+    ? Math.max(0, Math.round((bepTarget.value - hargaSekarang.value) / hargaSekarang.value * 1000) / 10)
     : null)
 
 // Simulasi saving — budget di-init dari server dan dipersist balik (debounced)

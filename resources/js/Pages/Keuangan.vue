@@ -630,13 +630,13 @@ function fmtTanggal(tgl) {
             <div class="flex items-center justify-between">
                 <h2 class="text-base font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
                     <Repeat2 :size="16" class="text-indigo-500"/>
-                    Transaksi Berulang
+                    Transaksi Berulang Harian
                 </h2>
                 <div class="flex gap-2">
                     <button @click="applyRecurring"
                         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-medium transition-colors">
                         <RefreshCw :size="12"/>
-                        Terapkan Bulan Ini
+                        Terapkan Hari Ini
                     </button>
                     <button @click="showRecurringForm = !showRecurringForm"
                         class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-xs font-medium transition-colors">
@@ -650,6 +650,7 @@ function fmtTanggal(tgl) {
             <Card v-if="showRecurringForm" class="border-indigo-400/40 dark:border-indigo-600/30 bg-indigo-50/50 dark:bg-indigo-900/10">
                 <CardContent class="p-4 space-y-3">
                     <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tambah Transaksi Berulang</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Dibukukan otomatis <strong>setiap hari</strong> jam 00:05 selama aktif — cocok untuk pengeluaran/pemasukan harian tetap, bukan tagihan bulanan.</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="recurring-type" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Tipe</label>
@@ -674,7 +675,7 @@ function fmtTanggal(tgl) {
                         </div>
                         <div>
                             <label for="recurring-catatan" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Catatan (opsional)</label>
-                            <input id="recurring-catatan" v-model="recurringForm.catatan" type="text" placeholder="Contoh: Cicilan KPR"
+                            <input id="recurring-catatan" v-model="recurringForm.catatan" type="text" placeholder="Contoh: Parkir kantor"
                                 class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
                         </div>
                     </div>
@@ -716,7 +717,7 @@ function fmtTanggal(tgl) {
                             :aria-pressed="r.aktif">
                             <component :is="r.aktif ? ToggleRight : ToggleLeft" :size="22"/>
                         </button>
-                        <button @click="confirmHapus('recurring', r.id, 'Hapus transaksi berulang ini?', 'Transaksi ini tidak akan diterapkan lagi mulai bulan depan.')" aria-label="Hapus transaksi berulang"
+                        <button @click="confirmHapus('recurring', r.id, 'Hapus transaksi berulang ini?', 'Transaksi ini tidak akan diterapkan lagi mulai besok.')" aria-label="Hapus transaksi berulang"
                             class="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0">
                             <Trash2 :size="14"/>
                         </button>

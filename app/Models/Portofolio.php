@@ -46,8 +46,10 @@ class Portofolio extends Model
     // memicu query N+1 lewat append 'total' ini.
     public function getTotalAttribute(): int
     {
+        // gram_terbayar (bukan total_gram): hanya porsi kontrak yang sudah
+        // diangsur yang dihitung sebagai aset — lihat KontrakCicilanEmas.
         $kontrakAktif = KontrakCicilanEmas::aktifUntuk($this->user_id);
-        $gramCicilan = $kontrakAktif ? (float) $kontrakAktif->total_gram : 0.0;
+        $gramCicilan = $kontrakAktif ? (float) $kontrakAktif->gram_terbayar : 0.0;
         $hargaEmas = (int) ($this->harga_emas ?? 0);
 
         $nilaiCicilan = $gramCicilan * $hargaEmas;

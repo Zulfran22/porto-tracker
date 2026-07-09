@@ -251,6 +251,40 @@ class KontrakCicilanTest extends TestCase
         Storage::disk('local')->assertExists($kontrak->file_kontrak);
     }
 
+    public function test_gram_terbayar_proporsional_dengan_angsuran_berjalan(): void
+    {
+        $user = User::factory()->create();
+
+        // Mulai 6 bulan lalu, tenor 12, total 4g → 7 angsuran terbayar
+        // (angsuran pertama dibayar saat kontrak dimulai) → 4 × 7/12 ≈ 2.3333g.
+        $kontrak = KontrakCicilanEmas::create([
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'GT-1',
+            'tanggal_mulai' => now()->subMonths(6)->toDateString(),
+            'tanggal_selesai' => now()->addMonths(6)->toDateString(),
+            'tenor_bulan' => 12,
+            'total_gram' => 4,
+            'angsuran_bulan' => 1000000,
+            'status' => 'aktif',
+        ]);
+
+        $this->assertEqualsWithDelta(2.3333, $kontrak->gram_terbayar, 0.0001);
+
+        // Melewati tenor → dibatasi total gram kontrak, tidak lebih.
+        $lunas = KontrakCicilanEmas::create([
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'GT-2',
+            'tanggal_mulai' => now()->subMonths(24)->toDateString(),
+            'tanggal_selesai' => now()->subMonths(12)->toDateString(),
+            'tenor_bulan' => 12,
+            'total_gram' => 4,
+            'angsuran_bulan' => 1000000,
+            'status' => 'aktif',
+        ]);
+
+        $this->assertEqualsWithDelta(4.0, $lunas->gram_terbayar, 0.0001);
+    }
+
     public function test_file_kontrak_mengikuti_disk_upload_yang_dikonfigurasi(): void
     {
         // Di produksi (Render) UPLOADS_DISK=s3 (Backblaze B2) karena filesystem

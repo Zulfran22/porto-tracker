@@ -40,7 +40,9 @@ const gramType     = computed(() => props.investmentTypes.find(t => t.unit === '
 // aktif tercatat — tanpa itu jangan menebak pakai angka siapa pun, tampilkan
 // 0 / sembunyikan section terkait (lihat hasKontrak di template).
 const hasKontrak      = computed(() => !!props.aktifKontrak)
-const cicilanGram     = computed(() => hasKontrak.value ? Number(props.aktifKontrak.total_gram) : 0)
+// gram_terbayar (bukan total_gram) — hanya porsi kontrak yang sudah diangsur
+// yang dihitung aset, konsisten dengan Portofolio::getTotalAttribute.
+const cicilanGram     = computed(() => hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0)
 const cicilanBulanan  = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 const bepTarget       = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 
@@ -53,7 +55,13 @@ const diff      = computed(() => totalLast.value - totalPrev.value)
 const cashIncome = computed(() => Number(props.cashflow?.income ?? 0))
 const cashExpense = computed(() => Number(props.cashflow?.expense ?? 0))
 const cashNet = computed(() => Number(props.cashflow?.net ?? 0))
-const cashBurnPct = computed(() => cashIncome.value > 0 ? Math.min(100, Math.round(cashExpense.value / cashIncome.value * 100)) : 0)
+// Burn jujur: tidak di-cap (pengeluaran 150% dari pemasukan ya tampil 150%),
+// dan pengeluaran tanpa pemasukan sama sekali dihitung 100% (Kritis) — dulu
+// malah tampil 0% "Sehat". Hanya lebar bar yang di-cap 100 (urusan visual).
+const cashBurnPct = computed(() => cashIncome.value > 0
+    ? Math.round(cashExpense.value / cashIncome.value * 100)
+    : (cashExpense.value > 0 ? 100 : 0))
+const cashBurnBar = computed(() => Math.min(100, cashBurnPct.value))
 const cashSavePct = computed(() => cashIncome.value > 0 ? Math.round(cashNet.value / cashIncome.value * 100) : 0)
 
 // Reminder pembayaran cicilan HANYA relevan kalau user benar-benar punya kontrak
@@ -237,7 +245,7 @@ const exportPortofolio = () => {
                         </div>
                         <div class="h-2 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
                             <div class="h-full rounded-full transition-all"
-                                :style="{ width: cashBurnPct + '%' }"
+                                :style="{ width: cashBurnBar + '%' }"
                                 :class="cashBurnPct > 90 ? 'bg-red-500' : cashBurnPct > 70 ? 'bg-orange-400' : 'bg-green-500'">
                             </div>
                         </div>
@@ -268,7 +276,7 @@ const exportPortofolio = () => {
                             <p class="text-xs text-zinc-500 mb-1">Total emas</p>
                             <p class="text-lg font-semibold text-yellow-500 dark:text-yellow-400">{{ (Number(gramItemOf(last.items).gram) + cicilanGram).toFixed(2) }}g</p>
                             <p class="text-xs text-zinc-400 mt-0.5">
-                                <template v-if="hasKontrak">Termasuk {{ cicilanGram }}g dalam kontrak cicilan aktif + {{ gramItemOf(last.items).gram }}g tunai</template>
+                                <template v-if="hasKontrak">Termasuk {{ cicilanGram }}g terbayar dari kontrak (total {{ Number(aktifKontrak.total_gram) }}g) + {{ gramItemOf(last.items).gram }}g tunai</template>
                                 <template v-else>{{ gramItemOf(last.items).gram }}g tunai</template>
                             </p>
                         </CardContent>
@@ -321,7 +329,7 @@ const exportPortofolio = () => {
                     </CardHeader>
                     <CardContent class="px-4 pb-4 space-y-2.5">
     <div v-if="hasKontrak" class="flex justify-between text-sm items-center">
-        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="13" class="text-yellow-600"/>Cicilan {{ cicilanGram }} gram</span>
+        <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5"><Lock :size="13" class="text-yellow-600"/>Cicilan {{ cicilanGram }}g terbayar</span>
         <span class="text-yellow-600 font-medium">{{ fmt(cicilanGram * last.harga_emas) }}</span>
     </div>
     <div v-if="gramItemOf(last.items)" class="flex justify-between text-sm items-center">

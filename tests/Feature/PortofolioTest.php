@@ -62,6 +62,34 @@ class PortofolioTest extends TestCase
     // cicilanPaid mengontrol notif jatuh tempo di dashboard: hilang begitu data
     // bulan berjalan tersimpan dengan field cicilan terisi (lewat halaman Catat
     // yang dituju tombol "Catat pembayaran" di notif).
+    public function test_total_menghitung_gram_kontrak_proporsional_terbayar(): void
+    {
+        $user = User::factory()->create();
+
+        // Kontrak 6 bulan berjalan (7 dari 12 angsuran) → hanya 2.3333g yang
+        // dihitung aset, bukan 4g penuh — total tidak boleh menggelembung
+        // dengan porsi kontrak yang belum dibayar.
+        KontrakCicilanEmas::create([
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'TOT-1',
+            'tanggal_mulai' => now()->subMonths(6)->toDateString(),
+            'tanggal_selesai' => now()->addMonths(6)->toDateString(),
+            'tenor_bulan' => 12,
+            'total_gram' => 4,
+            'angsuran_bulan' => 1000000,
+            'status' => 'aktif',
+        ]);
+
+        $portofolio = Portofolio::create([
+            'user_id' => $user->id,
+            'bulan' => '2026-06',
+            'harga_emas' => 1000000,
+            'cicilan' => 0,
+        ]);
+
+        $this->assertSame(2333300, $portofolio->fresh()->total);
+    }
+
     public function test_dashboard_cicilan_paid_mengikuti_cicilan_bulan_berjalan(): void
     {
         $user = User::factory()->create();
