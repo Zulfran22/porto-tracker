@@ -20,9 +20,16 @@ class KontrakCicilanController extends Controller
         ]);
     }
 
+    // Semua akses file kontrak lewat disk ini — 'local' di dev/test, 's3' (R2)
+    // di produksi yang filesystem-nya ephemeral. Lihat config/filesystems.php.
+    private function uploadsDisk(): string
+    {
+        return config('filesystems.uploads');
+    }
+
     public function store(KontrakCicilanRequest $request)
     {
-        $path = $request->file('file_kontrak')?->store('kontrak', 'local');
+        $path = $request->file('file_kontrak')?->store('kontrak', $this->uploadsDisk());
 
         KontrakCicilanEmas::create([
             'user_id' => auth()->id(),
@@ -51,9 +58,9 @@ class KontrakCicilanController extends Controller
         $path = $kontrak->file_kontrak;
         if ($request->hasFile('file_kontrak')) {
             if ($path) {
-                Storage::disk('local')->delete($path);
+                Storage::disk($this->uploadsDisk())->delete($path);
             }
-            $path = $request->file('file_kontrak')->store('kontrak', 'local');
+            $path = $request->file('file_kontrak')->store('kontrak', $this->uploadsDisk());
         }
 
         $kontrak->update([
@@ -81,7 +88,7 @@ class KontrakCicilanController extends Controller
         $this->authorize('delete', $kontrak);
 
         if ($kontrak->file_kontrak) {
-            Storage::disk('local')->delete($kontrak->file_kontrak);
+            Storage::disk($this->uploadsDisk())->delete($kontrak->file_kontrak);
         }
 
         $kontrak->delete();
@@ -98,6 +105,6 @@ class KontrakCicilanController extends Controller
 
         abort_unless($kontrak->file_kontrak, 404);
 
-        return Storage::disk('local')->response($kontrak->file_kontrak);
+        return Storage::disk($this->uploadsDisk())->response($kontrak->file_kontrak);
     }
 }

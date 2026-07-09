@@ -60,42 +60,48 @@ CI (`.github/workflows/ci.yml`) runs both on every push/PR to `main`.
 ## The daily "recurring transactions" job
 
 Active recurring transactions are applied automatically once a day (`recurring:apply`, scheduled
-`dailyAt('00:05')` in `routes/console.php`) — this requires the scheduler to actually be running in
-production; see the deploy commands below. The "Terapkan Bulan Ini" button in Keuangan is a manual
+`dailyAt('00:05')` in `routes/console.php`). The "Terapkan Bulan Ini" button in Keuangan is a manual
 on-demand trigger for the same idempotent logic (`app/Actions/ApplyRecurringTransactions.php`).
 
-## Deployment
+In production the app runs on Koyeb's free instance, which **scales to zero after ~1 hour idle** —
+`schedule:work` sleeps with the container, so the 00:05 run can be missed. The reliable trigger is
+the tokenized webhook `GET /cron/recurring-apply?token=...` (`CRON_TOKEN` env), called daily by an
+external cron service (cron-job.org). The command is idempotent, so the webhook and the internal
+scheduler can safely fire on the same day.
 
-This repo carries **four different deploy configs** left over from evaluating different hosts —
-they all now background `php artisan schedule:work` (there's no system cron on these platforms) before
-starting the web server, so the daily recurring-transactions job actually runs wherever this is deployed:
+## Deployment (Koyeb + Neon + Cloudflare R2 — all free tiers)
 
-| File | Target |
-|---|---|
-| `railway.json` | Railway (current) |
-| `Dockerfile` | Any Docker host, incl. Railway if it prefers the Dockerfile over `railway.json` |
-| `Procfile` + `nixpacks.toml` | Northflank (earlier attempt) |
+The app deploys to [Koyeb](https://www.koyeb.com) from GitHub using the repo's `Dockerfile`
+(free instance: 0.1 vCPU / 512MB, scale-to-zero after idle, cold start of a few seconds). The
+container filesystem is ephemeral and Koyeb's free Postgres is capped at 5 compute hours/month,
+so state lives elsewhere:
 
-Pick one platform and delete the other configs once you've settled — keeping all four risks them
-drifting out of sync.
+| Concern | Where | Why |
+|---|---|---|
+| Database | [Neon](https://neon.tech) free Postgres (`DB_URL`) | Permanent free tier (unlike Render's 30-day expiry); auto-suspends when idle, wakes in ~1s |
+| Uploaded contract files | [Cloudflare R2](https://developers.cloudflare.com/r2/) via the `s3` disk (`UPLOADS_DISK=s3`) | Container disk is wiped on every deploy/scale-to-zero |
+| Daily scheduler | [cron-job.org](https://cron-job.org) → `/cron/recurring-apply?token=...` | `schedule:work` sleeps whenever the instance scales to zero |
 
-For a production `.env`, start from `.env.production.example` (already sets `APP_DEBUG=false`,
-`SESSION_SECURE_COOKIE=true`, Postgres, etc.) rather than `.env.example`. `AppServiceProvider` also
-force-disables debug mode and forces a secure session cookie whenever `APP_ENV=production`, as a
-safety net against a misconfigured environment.
+For the production env vars, start from `.env.production.example` (already sets `APP_DEBUG=false`,
+`SESSION_SECURE_COOKIE=true`, Neon/R2/cron placeholders, etc.) rather than `.env.example`.
+`AppServiceProvider` also force-disables debug mode and forces a secure session cookie whenever
+`APP_ENV=production`, as a safety net against a misconfigured environment.
 
 ### Pre-publish checklist
 
-- **Uploaded files need a persistent volume.** Contract documents live on the `local` disk
-  (`storage/app/private`), and Railway's container filesystem is ephemeral — attach a Railway
-  Volume mounted at `/app/storage/app`, or every redeploy silently deletes user uploads.
+- **Create the R2 bucket and set `UPLOADS_DISK=s3` + `AWS_*`.** Without it, uploaded contract
+  documents silently vanish on the next redeploy or scale-to-zero cycle.
+- **Register the cron-job.org job** hitting `/cron/recurring-apply?token=<CRON_TOKEN>` daily at
+  00:05 WIB — otherwise recurring transactions are only applied when someone presses the manual
+  button.
 - **Mail must point at a real SMTP provider.** With `MAIL_MAILER=log` the password-reset flow
   looks like it works but no email is ever sent — see the commented SMTP block in
   `.env.production.example`.
 - **Set `SENTRY_LARAVEL_DSN`.** The integration is wired up but no-ops without a DSN, leaving
   production exceptions visible only to someone tailing logs.
 - **Verify database backups.** Every deploy runs `php artisan migrate --force` and there is no
-  automated backup step — confirm the host's backup story independently.
+  automated backup step — Neon's free tier keeps a limited point-in-time restore window; export
+  a manual dump (`pg_dump`) before risky migrations.
 
 ## Architecture notes
 

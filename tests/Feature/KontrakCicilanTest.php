@@ -251,6 +251,35 @@ class KontrakCicilanTest extends TestCase
         Storage::disk('local')->assertExists($kontrak->file_kontrak);
     }
 
+    public function test_file_kontrak_mengikuti_disk_upload_yang_dikonfigurasi(): void
+    {
+        // Di produksi (Koyeb) UPLOADS_DISK=s3 (Cloudflare R2) karena filesystem
+        // container ephemeral — pastikan seluruh siklus (upload, download,
+        // hapus) benar-benar memakai disk dari config, bukan 'local' hardcoded.
+        config(['filesystems.uploads' => 's3']);
+        Storage::fake('s3');
+        $user = User::factory()->create();
+        $file = UploadedFile::fake()->create('kontrak.pdf', 100, 'application/pdf');
+
+        $this->actingAs($user)->post('/kontrak-cicilan', [
+            'nomor_kontrak' => 'R2-1',
+            'tanggal_mulai' => '2026-06-04',
+            'tenor_bulan' => 12,
+            'total_gram' => 5,
+            'angsuran_bulan' => 1032662,
+            'file_kontrak' => $file,
+        ]);
+
+        $kontrak = KontrakCicilanEmas::where('user_id', $user->id)->first();
+        $this->assertNotNull($kontrak->file_kontrak);
+        Storage::disk('s3')->assertExists($kontrak->file_kontrak);
+
+        $this->actingAs($user)->get(route('kontrak-cicilan.file', $kontrak->id))->assertOk();
+
+        $this->actingAs($user)->delete("/kontrak-cicilan/{$kontrak->id}");
+        Storage::disk('s3')->assertMissing($kontrak->file_kontrak);
+    }
+
     public function test_file_kontrak_is_stored_privately_and_only_accessible_by_owner(): void
     {
         Storage::fake('local');

@@ -10,6 +10,7 @@ use App\Http\Controllers\RecurringTransactionController;
 use App\Http\Controllers\TargetController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -33,6 +34,23 @@ Route::post('/onboarding/continue', function (Request $request) {
     return redirect()->route('login')
         ->withCookie(cookie()->forever('onboarding_seen', '1'));
 })->middleware('guest')->name('onboarding.continue');
+
+// Pemicu eksternal job harian recurring:apply — di host free-tier yang
+// scale-to-zero (Koyeb), schedule:work ikut tidur bersama container sehingga
+// jadwal 00:05 bisa terlewat. cron-job.org memanggil URL ini tiap hari;
+// command-nya idempoten (yang sudah diterapkan hari ini dilewati), jadi aman
+// terpanggil dobel dengan scheduler internal saat container kebetulan bangun.
+// GET (bukan POST) supaya tidak tersandung CSRF dan bisa dipakai layanan cron
+// mana pun; hash_equals mencegah timing attack pada perbandingan token.
+Route::get('/cron/recurring-apply', function (Request $request) {
+    $token = (string) config('cron.token');
+
+    abort_unless($token !== '' && hash_equals($token, (string) $request->query('token')), 403);
+
+    Artisan::call('recurring:apply');
+
+    return response()->json(['ok' => true]);
+})->middleware('throttle:10,1')->name('cron.recurring-apply');
 
 Route::middleware('auth')->group(function () {
 
