@@ -51,26 +51,35 @@ class KontrakCicilanEmas extends Model
             ->first();
     }
 
-    // Estimasi gram yang sudah menjadi hak user berdasarkan angsuran berjalan.
-    // Aplikasi tidak mencatat pembayaran per angsuran, jadi dipakai proxy
-    // jadwal: angsuran pertama dianggap dibayar saat kontrak dimulai, lalu
-    // bertambah satu tiap bulan, dibatasi tenor. Dipakai oleh
-    // Portofolio::getTotalAttribute dan tampilan Total emas/Target — supaya
-    // total portofolio mencerminkan porsi yang benar-benar terbayar, bukan
-    // seluruh gram kontrak sejak hari pertama (aset menggelembung, sisa
-    // kewajiban diabaikan).
-    public function getGramTerbayarAttribute(): float
+    // Estimasi gram yang sudah menjadi hak user PADA bulan snapshot tertentu
+    // (format Y-m). Aplikasi tidak mencatat pembayaran per angsuran, jadi
+    // dipakai proxy jadwal: angsuran pertama dianggap dibayar di bulan kontrak
+    // dimulai, bertambah satu tiap bulan, dibatasi tenor. Point-in-time —
+    // bulan sebelum kontrak menghasilkan 0, dan bulan lama dinilai dengan
+    // angsuran yang sudah berjalan pada bulan ITU, bukan kondisi hari ini
+    // (dulu seluruh riwayat/Grafik ditulis ulang tiap angsuran bertambah).
+    public function gramTerbayarPada(string $bulan): float
     {
         if ($this->tenor_bulan <= 0 || $this->total_gram <= 0) {
             return 0.0;
         }
 
-        $angsuranTerbayar = min(
-            $this->tenor_bulan,
-            max(0, (int) floor($this->tanggal_mulai->diffInMonths(now())) + 1)
+        $selisihBulan = (int) floor(
+            $this->tanggal_mulai->copy()->startOfMonth()->diffInMonths(now()->parse($bulan.'-01'))
         );
 
+        if ($selisihBulan < 0) {
+            return 0.0;
+        }
+
+        $angsuranTerbayar = min($this->tenor_bulan, $selisihBulan + 1);
+
         return round($this->total_gram * $angsuranTerbayar / $this->tenor_bulan, 4);
+    }
+
+    public function getGramTerbayarAttribute(): float
+    {
+        return $this->gramTerbayarPada(now()->format('Y-m'));
     }
 
     // Harga breakeven per gram: total biaya kontrak (angsuran selama tenor + sewa modal + biaya admin) dibagi total gram

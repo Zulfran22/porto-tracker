@@ -86,6 +86,7 @@ const fieldId = (name) => `${uid}-${name}`
                 <Wallet :size="12" class="text-zinc-400"/> Angsuran/bulan (Rp)
             </label>
             <input :id="fieldId('angsuran-bulan')" type="number" v-model="form.angsuran_bulan" :class="inputClass"/>
+            <p class="text-xs text-zinc-400 mt-1">Angsuran pokok saja, di luar sewa modal</p>
             <p v-if="form.errors.angsuran_bulan" class="text-xs text-red-500 mt-1">{{ form.errors.angsuran_bulan }}</p>
         </div>
     </div>
@@ -96,6 +97,7 @@ const fieldId = (name) => `${uid}-${name}`
                 <Receipt :size="12" class="text-zinc-400"/> Sewa modal (Rp)
             </label>
             <input :id="fieldId('sewa-modal')" type="number" v-model="form.sewa_modal" placeholder="mis. 2033750" :class="inputClass"/>
+            <p class="text-xs text-zinc-400 mt-1">Total sewa modal selama tenor. Kalau angsuran bulananmu <strong>sudah termasuk</strong> sewa modal, isi 0 — supaya BEP tidak menghitungnya dua kali.</p>
         </div>
         <div>
             <label :for="fieldId('biaya-admin')" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">

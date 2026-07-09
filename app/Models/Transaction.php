@@ -10,6 +10,12 @@ class Transaction extends Model
 {
     use SoftDeletes;
 
+    // Kategori transaksi yang disinkronkan otomatis dari field "cicilan" pada
+    // data portofolio bulanan (PortofolioController::syncCicilanTransaction) —
+    // supaya pembayaran cicilan ikut terhitung di cashflow/saving rate tanpa
+    // pencatatan dobel manual.
+    public const KATEGORI_CICILAN_EMAS = 'Cicilan Emas';
+
     protected $fillable = [
         'user_id', 'recurring_transaction_id', 'tanggal', 'type', 'kategori', 'jumlah', 'catatan',
     ];

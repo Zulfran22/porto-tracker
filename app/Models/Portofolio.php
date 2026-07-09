@@ -24,7 +24,7 @@ class Portofolio extends Model
         'cicilan' => 'integer',
     ];
 
-    protected $appends = ['total'];
+    protected $appends = ['total', 'gram_cicilan'];
 
     public function user(): BelongsTo
     {
@@ -44,15 +44,21 @@ class Portofolio extends Model
     // Nilai investasi datang dari relasi items() — controller WAJIB eager-load
     // with('items') tiap kali men-serialize Portofolio, kalau tidak setiap baris
     // memicu query N+1 lewat append 'total' ini.
+    // Gram kontrak yang dihitung aset PADA bulan snapshot ini (point-in-time,
+    // 0 untuk bulan sebelum kontrak) — dipakai getTotalAttribute dan juga
+    // frontend (Total emas/Alokasi/Grafik) supaya konsisten dengan total.
+    public function getGramCicilanAttribute(): float
+    {
+        $kontrakAktif = KontrakCicilanEmas::aktifUntuk($this->user_id);
+
+        return $kontrakAktif ? $kontrakAktif->gramTerbayarPada($this->bulan) : 0.0;
+    }
+
     public function getTotalAttribute(): int
     {
-        // gram_terbayar (bukan total_gram): hanya porsi kontrak yang sudah
-        // diangsur yang dihitung sebagai aset — lihat KontrakCicilanEmas.
-        $kontrakAktif = KontrakCicilanEmas::aktifUntuk($this->user_id);
-        $gramCicilan = $kontrakAktif ? (float) $kontrakAktif->gram_terbayar : 0.0;
         $hargaEmas = (int) ($this->harga_emas ?? 0);
 
-        $nilaiCicilan = $gramCicilan * $hargaEmas;
+        $nilaiCicilan = $this->gram_cicilan * $hargaEmas;
 
         $nilaiItems = $this->items->sum(function (PortfolioItem $item) use ($hargaEmas) {
             return $item->unit === 'gram'

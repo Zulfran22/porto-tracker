@@ -40,9 +40,9 @@ const gramType     = computed(() => props.investmentTypes.find(t => t.unit === '
 // aktif tercatat — tanpa itu jangan menebak pakai angka siapa pun, tampilkan
 // 0 / sembunyikan section terkait (lihat hasKontrak di template).
 const hasKontrak      = computed(() => !!props.aktifKontrak)
-// gram_terbayar (bukan total_gram) — hanya porsi kontrak yang sudah diangsur
-// yang dihitung aset, konsisten dengan Portofolio::getTotalAttribute.
-const cicilanGram     = computed(() => hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0)
+// gram_cicilan milik bulan snapshot terakhir (point-in-time, dihitung backend)
+// — konsisten dengan angka total bulan itu, bukan kondisi kontrak hari ini.
+const cicilanGram     = computed(() => Number(last.value?.gram_cicilan ?? 0))
 const cicilanBulanan  = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 const bepTarget       = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
 

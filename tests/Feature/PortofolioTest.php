@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\InvestmentType;
 use App\Models\KontrakCicilanEmas;
 use App\Models\Portofolio;
+use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -62,13 +63,11 @@ class PortofolioTest extends TestCase
     // cicilanPaid mengontrol notif jatuh tempo di dashboard: hilang begitu data
     // bulan berjalan tersimpan dengan field cicilan terisi (lewat halaman Catat
     // yang dituju tombol "Catat pembayaran" di notif).
-    public function test_total_menghitung_gram_kontrak_proporsional_terbayar(): void
+    public function test_total_menghitung_gram_kontrak_proporsional_pada_bulan_snapshot(): void
     {
         $user = User::factory()->create();
 
-        // Kontrak 6 bulan berjalan (7 dari 12 angsuran) → hanya 2.3333g yang
-        // dihitung aset, bukan 4g penuh — total tidak boleh menggelembung
-        // dengan porsi kontrak yang belum dibayar.
+        // Kontrak mulai 6 bulan lalu, tenor 12, 4g.
         KontrakCicilanEmas::create([
             'user_id' => $user->id,
             'nomor_kontrak' => 'TOT-1',
@@ -80,14 +79,59 @@ class PortofolioTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $portofolio = Portofolio::create([
+        // Snapshot bulan lalu dinilai dengan angsuran yang berjalan PADA bulan
+        // itu (6 dari 12 → 2g), bukan kondisi hari ini — riwayat tidak boleh
+        // ditulis ulang tiap angsuran bertambah.
+        $bulanLalu = Portofolio::create([
             'user_id' => $user->id,
-            'bulan' => '2026-06',
+            'bulan' => now()->subMonth()->format('Y-m'),
             'harga_emas' => 1000000,
             'cicilan' => 0,
         ]);
 
-        $this->assertSame(2333300, $portofolio->fresh()->total);
+        $this->assertSame(2000000, $bulanLalu->fresh()->total);
+
+        // Snapshot SEBELUM kontrak ada tidak kebagian gram kontrak sama sekali.
+        $praKontrak = Portofolio::create([
+            'user_id' => $user->id,
+            'bulan' => now()->subMonths(8)->format('Y-m'),
+            'harga_emas' => 1000000,
+            'cicilan' => 0,
+        ]);
+
+        $this->assertSame(0, $praKontrak->fresh()->total);
+    }
+
+    public function test_menyimpan_cicilan_menyinkronkan_transaksi_pengeluaran(): void
+    {
+        $user = User::factory()->create();
+
+        // Simpan bulan dengan cicilan → transaksi expense "Cicilan Emas" ikut
+        // tercipta supaya cashflow/saving rate memuat pengeluaran ini.
+        $this->actingAs($user)->post('/portofolio', $this->payload(['cicilan' => 1032662]));
+
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id,
+            'type' => 'expense',
+            'kategori' => Transaction::KATEGORI_CICILAN_EMAS,
+            'jumlah' => 1032662,
+        ]);
+
+        // Simpan ulang bulan sama dengan nilai berbeda → di-update, bukan dobel.
+        $this->actingAs($user)->post('/portofolio', $this->payload(['cicilan' => 2000000]));
+
+        $this->assertSame(1, Transaction::where('user_id', $user->id)
+            ->where('kategori', Transaction::KATEGORI_CICILAN_EMAS)->count());
+        $this->assertDatabaseHas('transactions', [
+            'kategori' => Transaction::KATEGORI_CICILAN_EMAS,
+            'jumlah' => 2000000,
+        ]);
+
+        // Cicilan dikosongkan → transaksi sinkronannya ikut hilang.
+        $this->actingAs($user)->post('/portofolio', $this->payload(['cicilan' => 0]));
+
+        $this->assertSame(0, Transaction::where('user_id', $user->id)
+            ->where('kategori', Transaction::KATEGORI_CICILAN_EMAS)->count());
     }
 
     public function test_dashboard_cicilan_paid_mengikuti_cicilan_bulan_berjalan(): void

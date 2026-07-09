@@ -47,9 +47,12 @@ const saveTarget = () => form.put(route('target.update'))
 // Gram & angsuran cicilan hanya berarti kalau user benar-benar punya kontrak
 // aktif tercatat — tanpa itu 0, bukan menebak pakai kontrak siapa pun.
 const hasKontrak     = computed(() => !!props.aktifKontrak)
-// gram_terbayar (bukan total_gram) — progress target gram hanya menghitung
-// porsi kontrak yang sudah diangsur, konsisten dengan total portofolio.
-const cicilanGram    = computed(() => hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0)
+// Progress target gram memakai gram_cicilan milik bulan snapshot terakhir
+// (point-in-time, konsisten dengan total); tanpa snapshot sama sekali, jatuh
+// ke gram terbayar kontrak per hari ini.
+const cicilanGram    = computed(() => last.value
+    ? Number(last.value.gram_cicilan ?? 0)
+    : (hasKontrak.value ? Number(props.aktifKontrak.gram_terbayar) : 0))
 const cicilanBulanan = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 
 // Tanpa data portofolio, harga emas belum diketahui — jangan menebak angka, tampilkan "belum ada data".

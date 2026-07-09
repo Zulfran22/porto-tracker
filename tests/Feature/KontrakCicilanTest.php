@@ -270,6 +270,10 @@ class KontrakCicilanTest extends TestCase
 
         $this->assertEqualsWithDelta(2.3333, $kontrak->gram_terbayar, 0.0001);
 
+        // Point-in-time: bulan sebelum kontrak = 0; bulan mulai = 1 angsuran.
+        $this->assertSame(0.0, $kontrak->gramTerbayarPada(now()->subMonths(7)->format('Y-m')));
+        $this->assertEqualsWithDelta(0.3333, $kontrak->gramTerbayarPada(now()->subMonths(6)->format('Y-m')), 0.0001);
+
         // Melewati tenor → dibatasi total gram kontrak, tidak lebih.
         $lunas = KontrakCicilanEmas::create([
             'user_id' => $user->id,

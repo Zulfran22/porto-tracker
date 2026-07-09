@@ -150,6 +150,7 @@ class PortofolioController extends Controller
             }
 
             $this->syncItems($portofolio, $request->input('items', []));
+            $this->syncCicilanTransaction($portofolio);
         });
 
         return redirect()->route('dashboard')
@@ -180,10 +181,52 @@ class PortofolioController extends Controller
             ]);
 
             $this->syncItems($portofolio, $request->input('items', []));
+            $this->syncCicilanTransaction($portofolio);
         });
 
         return redirect()->route('dashboard')
             ->with('success', 'Data berhasil diupdate!');
+    }
+
+    // Pembayaran cicilan yang dicatat di data bulanan disinkronkan sebagai
+    // Transaction expense (kategori "Cicilan Emas") supaya masuk cashflow /
+    // saving rate — sebelumnya pengeluaran bulanan terbesar user tidak pernah
+    // terhitung kecuali dicatat manual dua kali. Idempoten per bulan: maksimal
+    // satu transaksi kategori ini per bulan (di-update kalau nilai berubah,
+    // dihapus kalau cicilan dikosongkan).
+    private function syncCicilanTransaction(Portofolio $portofolio): void
+    {
+        $awalBulan = $portofolio->bulan.'-01';
+        $akhirBulan = now()->parse($awalBulan)->endOfMonth()->toDateString();
+
+        $existing = Transaction::where('user_id', $portofolio->user_id)
+            ->where('type', 'expense')
+            ->where('kategori', Transaction::KATEGORI_CICILAN_EMAS)
+            ->whereBetween('tanggal', [$awalBulan, $akhirBulan])
+            ->first();
+
+        $cicilan = (int) ($portofolio->cicilan ?? 0);
+
+        if ($cicilan > 0) {
+            if ($existing) {
+                $existing->update(['jumlah' => $cicilan]);
+            } else {
+                Transaction::create([
+                    'user_id' => $portofolio->user_id,
+                    // Bulan berjalan dicatat per hari ini; bulan lain (edit data
+                    // lama) dipatok ke tanggal 1 bulan itu.
+                    'tanggal' => $portofolio->bulan === now()->format('Y-m')
+                        ? now()->toDateString()
+                        : $awalBulan,
+                    'type' => 'expense',
+                    'kategori' => Transaction::KATEGORI_CICILAN_EMAS,
+                    'jumlah' => $cicilan,
+                    'catatan' => 'Otomatis dari data portofolio '.$portofolio->bulan,
+                ]);
+            }
+        } elseif ($existing) {
+            $existing->delete();
+        }
     }
 
     // Full delete-then-recreate per save — jumlah item per bulan kecil (satu
