@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
@@ -9,6 +9,7 @@ import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
 import { fmt } from '@/Composables/useCurrency'
+import { useSaldoVisibility } from '@/Composables/useSaldoVisibility'
 import { inputClass } from '@/Composables/useFormStyles'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
 import {
@@ -28,6 +29,7 @@ const props = defineProps({
 })
 
 const { isDark } = useTheme()
+const { isHidden: isSaldoHidden } = useSaldoVisibility()
 
 const KATEGORI_EXPENSE = [
     { name: 'Makan',     icon: UtensilsCrossed, color: 'text-orange-500 dark:text-orange-400' },
@@ -350,6 +352,7 @@ function buildChart() {
 }
 
 onMounted(buildChart)
+watch([isDark, isSaldoHidden], buildChart)
 
 onBeforeUnmount(() => {
     trendChart?.destroy()

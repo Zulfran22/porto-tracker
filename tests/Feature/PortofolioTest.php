@@ -372,4 +372,149 @@ class PortofolioTest extends TestCase
 
         $this->actingAs($other)->get('/api/catat-context?id='.$portofolio->id)->assertNotFound();
     }
+
+    // Bulan pertama yang pernah dicatat tidak punya baseline pembanding —
+    // dianggap delta dari 0, jadi nilai gram/saldo penuh ikut tercatat sebagai
+    // pengeluaran (itu memang pembelian/setoran bulan itu, bukan saldo awal
+    // dari sebelum mulai pakai app — dikonfirmasi user setelah bug report).
+    public function test_bulan_pertama_penuh_menghasilkan_transaksi_setoran(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/portofolio', $this->payload(['bulan' => '2026-06']));
+
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id, 'kategori' => 'Pembelian Emas Tunai', 'jumlah' => 1250000, // 0.5g * 2.500.000
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id, 'kategori' => 'Setoran Dana Darurat', 'jumlah' => 1000000,
+        ]);
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id, 'kategori' => 'Setoran Reksa Dana', 'jumlah' => 500000,
+        ]);
+        // SBN diisi 0 → tidak ada delta, tidak ada transaksi untuk kategori ini.
+        $this->assertSame(0, Transaction::where('user_id', $user->id)
+            ->where('kategori', 'Setoran SBN')->count());
+    }
+
+    // Kenaikan gram "Emas Tunai" bulan ini dibanding bulan lalu × harga_emas
+    // bulan ini harus tercatat sebagai pengeluaran — ini bug yang dilaporkan:
+    // cicilan sudah otomatis masuk cashflow, tapi emas tunai belum.
+    public function test_kenaikan_gram_emas_tunai_menyinkronkan_transaksi_pengeluaran(): void
+    {
+        $user = User::factory()->create();
+
+        $this->createPortofolio($user, [
+            'bulan' => '2026-05',
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 1]],
+        ]);
+
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'bulan' => '2026-06',
+            'harga_emas' => 2000000,
+            'cicilan' => 0,
+            'items' => [['type_name' => 'Emas Tunai', 'unit' => 'gram', 'gram' => 1.5]],
+        ]));
+
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id,
+            'type' => 'expense',
+            'kategori' => 'Pembelian Emas Tunai',
+            'jumlah' => 1000000, // 0.5g delta * 2.000.000/g
+        ]);
+    }
+
+    // Kenaikan saldo investasi rupiah (mis. Dana Darurat) bulan ini dibanding
+    // bulan lalu harus tercatat sebagai pengeluaran juga.
+    public function test_kenaikan_saldo_investasi_rupiah_menyinkronkan_transaksi_pengeluaran(): void
+    {
+        $user = User::factory()->create();
+
+        $this->createPortofolio($user, [
+            'bulan' => '2026-05',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1000000]],
+        ]);
+
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'bulan' => '2026-06',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1750000]],
+        ]));
+
+        $this->assertDatabaseHas('transactions', [
+            'user_id' => $user->id,
+            'type' => 'expense',
+            'kategori' => 'Setoran Dana Darurat',
+            'jumlah' => 750000,
+        ]);
+    }
+
+    // Saldo turun (mis. ditarik) bukan pengeluaran — bukan juga income di sini
+    // (di luar cakupan bug ini) — transaksi otomatis bulan itu cukup dihapus.
+    public function test_penurunan_saldo_menghapus_transaksi_setoran_bukan_membuat_pengeluaran_negatif(): void
+    {
+        $user = User::factory()->create();
+
+        $this->createPortofolio($user, [
+            'bulan' => '2026-05',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1000000]],
+        ]);
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'bulan' => '2026-06',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1750000]],
+        ]));
+        $this->assertSame(1, Transaction::where('user_id', $user->id)
+            ->where('kategori', 'Setoran Dana Darurat')->count());
+
+        // Saldo turun lagi di bulan yang sama (edit ulang) → transaksinya hilang.
+        $portofolio = Portofolio::where('user_id', $user->id)->where('bulan', '2026-06')->first();
+        $this->actingAs($user)->put("/portofolio/{$portofolio->id}", $this->payload([
+            'bulan' => '2026-06',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 900000]],
+        ]));
+
+        $this->assertSame(0, Transaction::where('user_id', $user->id)
+            ->where('kategori', 'Setoran Dana Darurat')->count());
+    }
+
+    // Mengedit bulan lampau mengubah baseline delta bulan SESUDAHNYA —
+    // transaksi otomatis bulan berikut harus ikut disinkronkan ulang tanpa
+    // perlu bulan itu disimpan ulang manual.
+    public function test_mengedit_bulan_lampau_menyinkronkan_ulang_transaksi_bulan_berikutnya(): void
+    {
+        $user = User::factory()->create();
+
+        // April jadi baseline supaya Mei sendiri bukan bulan pertama —
+        // isolasi murni ke perilaku cascade, bukan tercampur perilaku delta
+        // bulan pertama.
+        $this->createPortofolio($user, [
+            'bulan' => '2026-04',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1000000]],
+        ]);
+        $mei = $this->createPortofolio($user, [
+            'bulan' => '2026-05',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1200000]],
+        ]);
+        $this->actingAs($user)->post('/portofolio', $this->payload([
+            'bulan' => '2026-06',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1750000]],
+        ]));
+        $this->assertDatabaseHas('transactions', ['kategori' => 'Setoran Dana Darurat', 'jumlah' => 550000]);
+
+        // Ternyata data Mei salah catat — dikoreksi jadi lebih tinggi.
+        $this->actingAs($user)->put("/portofolio/{$mei->id}", $this->payload([
+            'bulan' => '2026-05',
+            'items' => [['type_name' => 'Dana Darurat', 'unit' => 'rupiah', 'jumlah' => 1500000]],
+        ]));
+
+        // Mei terhadap April yang sudah dikoreksi: 1.500.000 - 1.000.000.
+        $this->assertDatabaseHas('transactions', [
+            'kategori' => 'Setoran Dana Darurat', 'jumlah' => 500000, 'tanggal' => '2026-05-01',
+        ]);
+        // Juni terhadap Mei yang sudah dikoreksi: 1.750.000 - 1.500.000.
+        $this->assertDatabaseHas('transactions', [
+            'kategori' => 'Setoran Dana Darurat', 'jumlah' => 250000, 'tanggal' => '2026-06-01',
+        ]);
+        $this->assertSame(2, Transaction::where('user_id', $user->id)
+            ->where('kategori', 'Setoran Dana Darurat')->count());
+    }
 }

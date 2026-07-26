@@ -11,6 +11,8 @@ import {
     Target,
     Sun,
     Moon,
+    Eye,
+    EyeOff,
     LogOut,
     ChevronDown,
     User,
@@ -32,6 +34,7 @@ import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
 import PageSkeleton from '@/Components/PageSkeleton.vue'
 import PortfolioItemFields from '@/Components/PortfolioItemFields.vue'
 import { useTheme } from '@/Composables/useTheme'
+import { useSaldoVisibility } from '@/Composables/useSaldoVisibility'
 import { inputClass } from '@/Composables/useFormStyles'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
 
@@ -43,6 +46,11 @@ const user = computed(() => page.props.auth.user)
 // A separate local isDark here previously let the toggle flip the DOM/localStorage
 // state without those charts ever finding out, leaving them stuck on the old theme.
 const { isDark, toggle: toggleTheme } = useTheme()
+
+// Toggle sembunyikan/tampilkan saldo — shared singleton yang juga dipakai
+// fmt()/fmtJt() di useCurrency.js, jadi semua angka Rupiah di semua halaman
+// ikut ter-mask otomatis begitu tombol ini ditekan.
+const { isHidden: isSaldoHidden, toggle: toggleSaldo } = useSaldoVisibility()
 
 // Skeleton loading saat pindah halaman (klik Link di nav) — dibedakan dari
 // visit non-GET (submitBudget, hapus, dsb.) yang pakai preserveScroll supaya
@@ -177,6 +185,11 @@ defineExpose({ openCatat })
                     <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 tracking-tight">WealthID</span>
                 </Link>
                 <div class="flex items-center gap-2">
+                    <button @click="toggleSaldo" :aria-label="isSaldoHidden ? 'Tampilkan saldo' : 'Sembunyikan saldo'"
+                        class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                        <EyeOff v-if="isSaldoHidden" :size="16" />
+                        <Eye v-else :size="16" />
+                    </button>
                     <button @click="toggleTheme" :aria-label="isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'"
                         class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                         <Sun v-if="isDark" :size="16" />
@@ -254,8 +267,14 @@ defineExpose({ openCatat })
                     </Link>
                 </nav>
 
-                <!-- Theme Toggle -->
-                <div class="px-3 pb-2">
+                <!-- Saldo & Theme Toggle -->
+                <div class="px-3 pb-2 space-y-1">
+                    <button @click="toggleSaldo"
+                        class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors text-sm">
+                        <EyeOff v-if="isSaldoHidden" :size="18" />
+                        <Eye v-else :size="18" />
+                        <span>{{ isSaldoHidden ? 'Tampilkan saldo' : 'Sembunyikan saldo' }}</span>
+                    </button>
                     <button @click="toggleTheme"
                         class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors text-sm">
                         <Sun v-if="isDark" :size="18" />

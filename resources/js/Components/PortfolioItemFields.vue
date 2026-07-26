@@ -72,7 +72,7 @@ async function fetchHargaEmas() {
                 <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                     <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> {{ gramItem.type_name }} — total gram dimiliki
                 </label>
-                <input type="number" step="0.01" v-model="gramItem.gram" placeholder="mis. 0.50" :class="inputClass"/>
+                <input type="number" step="0.0001" min="0" inputmode="decimal" v-model="gramItem.gram" placeholder="mis. 0.01" :class="inputClass"/>
             </div>
             <div>
                 <div class="flex justify-between items-center mb-1.5">

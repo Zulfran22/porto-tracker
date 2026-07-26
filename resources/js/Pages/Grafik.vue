@@ -7,6 +7,7 @@ import { Progress } from '@/Components/ui/progress'
 import { Chart, registerables } from 'chart.js'
 import { useTheme } from '@/Composables/useTheme'
 import { fmt, fmtJt } from '@/Composables/useCurrency'
+import { useSaldoVisibility } from '@/Composables/useSaldoVisibility'
 Chart.register(...registerables)
 
 const props = defineProps({
@@ -15,6 +16,7 @@ const props = defineProps({
     aktifKontrak: { type: Object, default: null },
 })
 const { isDark } = useTheme()
+const { isHidden: isSaldoHidden } = useSaldoVisibility()
 
 const chartTotal  = ref(null)
 const chartHarga  = ref(null)
@@ -171,7 +173,7 @@ function buildCharts() {
 }
 
 onMounted(buildCharts)
-watch(isDark, buildCharts)
+watch([isDark, isSaldoHidden], buildCharts)
 onBeforeUnmount(destroyCharts)
 </script>
 

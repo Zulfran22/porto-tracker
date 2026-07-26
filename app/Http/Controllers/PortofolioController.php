@@ -150,6 +150,8 @@ class PortofolioController extends Controller
             }
 
             $this->syncItems($portofolio, $request->input('items', []));
+            $this->syncItemTransactions($portofolio);
+            $this->syncNextMonthItemTransactions($portofolio);
             $this->syncCicilanTransaction($portofolio);
         });
 
@@ -181,6 +183,8 @@ class PortofolioController extends Controller
             ]);
 
             $this->syncItems($portofolio, $request->input('items', []));
+            $this->syncItemTransactions($portofolio);
+            $this->syncNextMonthItemTransactions($portofolio);
             $this->syncCicilanTransaction($portofolio);
         });
 
@@ -226,6 +230,90 @@ class PortofolioController extends Controller
             }
         } elseif ($existing) {
             $existing->delete();
+        }
+    }
+
+    // item.gram/item.jumlah adalah SALDO KUMULATIF bulan itu (lihat
+    // Portofolio::getTotalAttribute), bukan setoran bulan berjalan — beda
+    // semantik dari field "cicilan" yang memang sudah berupa nominal per
+    // bulan. Makanya di sini uang yang "keluar" dihitung dari delta terhadap
+    // bulan sebelumnya (gram delta * harga_emas untuk unit gram, delta
+    // langsung untuk unit rupiah), lalu disinkronkan sebagai Transaction
+    // expense per jenis investasi — sebelumnya nambah emas tunai/saldo
+    // investasi tidak pernah mengurangi cashflow kecuali dicatat manual dua
+    // kali. Bulan pertama yang pernah dicatat (belum ada bulan sebelumnya)
+    // dianggap baseline 0 juga — nilainya adalah pembelian/setoran bulan itu
+    // sendiri, bukan saldo awal dari sebelum mulai pakai app. Delta negatif
+    // (saldo turun/ditarik) juga tidak dianggap expense — hanya menghapus
+    // transaksi otomatis bulan itu kalau sebelumnya ada, sama seperti
+    // syncCicilanTransaction saat cicilan dikosongkan.
+    private function syncItemTransactions(Portofolio $portofolio): void
+    {
+        $portofolio->load('items');
+
+        $previous = Portofolio::where('user_id', $portofolio->user_id)
+            ->where('bulan', '<', $portofolio->bulan)
+            ->orderByDesc('bulan')
+            ->with('items')
+            ->first();
+
+        $awalBulan = $portofolio->bulan.'-01';
+        $akhirBulan = now()->parse($awalBulan)->endOfMonth()->toDateString();
+        $hargaEmas = (int) ($portofolio->harga_emas ?? 0);
+        $prevByName = $previous ? $previous->items->keyBy('type_name') : collect();
+
+        foreach ($portofolio->items as $item) {
+            $prevItem = $prevByName->get($item->type_name);
+
+            $delta = $item->unit === 'gram'
+                ? ((float) $item->gram - (float) ($prevItem->gram ?? 0)) * $hargaEmas
+                : (int) $item->jumlah - (int) ($prevItem->jumlah ?? 0);
+            $delta = (int) round($delta);
+
+            $kategori = ($item->unit === 'gram' ? 'Pembelian ' : 'Setoran ').$item->type_name;
+
+            $existing = Transaction::where('user_id', $portofolio->user_id)
+                ->where('type', 'expense')
+                ->where('kategori', $kategori)
+                ->whereBetween('tanggal', [$awalBulan, $akhirBulan])
+                ->first();
+
+            if ($delta > 0) {
+                if ($existing) {
+                    $existing->update(['jumlah' => $delta]);
+                } else {
+                    Transaction::create([
+                        'user_id' => $portofolio->user_id,
+                        'tanggal' => $portofolio->bulan === now()->format('Y-m')
+                            ? now()->toDateString()
+                            : $awalBulan,
+                        'type' => 'expense',
+                        'kategori' => $kategori,
+                        'jumlah' => $delta,
+                        'catatan' => 'Otomatis dari data portofolio '.$portofolio->bulan,
+                    ]);
+                }
+            } elseif ($existing) {
+                $existing->delete();
+            }
+        }
+    }
+
+    // Mengedit data bulan lampau mengubah baseline delta bulan SESUDAHNYA
+    // (syncItemTransactions bulan itu memakai item bulan ini sebagai
+    // pembanding) — tanpa ini, transaksi otomatis bulan berikutnya jadi basi
+    // sampai bulan itu disimpan ulang manual. Cukup satu langkah ke depan:
+    // bulan setelah itu lagi memakai item bulan+1 (tidak berubah) sebagai
+    // baseline-nya, jadi tidak ikut terpengaruh.
+    private function syncNextMonthItemTransactions(Portofolio $portofolio): void
+    {
+        $next = Portofolio::where('user_id', $portofolio->user_id)
+            ->where('bulan', '>', $portofolio->bulan)
+            ->orderBy('bulan')
+            ->first();
+
+        if ($next) {
+            $this->syncItemTransactions($next);
         }
     }
 
