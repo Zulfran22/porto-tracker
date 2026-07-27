@@ -50,11 +50,13 @@ class PortofolioController extends Controller
     {
         InvestmentType::ensureDefaultsFor(auth()->id());
 
-        $last = Portofolio::where('user_id', auth()->id())
-            ->orderBy('bulan', 'desc')->first();
+        $bulan = now()->format('Y-m');
+        $last = Portofolio::where('user_id', auth()->id())->orderBy('bulan', 'desc')->first();
+        $previous = $this->previousPortofolio(auth()->id(), $bulan);
 
         return Inertia::render('Catat', [
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'lastItems' => $previous ? $previous->items : [],
             'investmentTypes' => InvestmentType::where('user_id', auth()->id())->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk(auth()->id()),
         ]);
@@ -110,10 +112,19 @@ class PortofolioController extends Controller
 
         $last = Portofolio::where('user_id', $userId)->orderBy('bulan', 'desc')->first();
 
+        // lastItems dipakai form buat menghitung ulang delta bulan ini vs
+        // saldo bulan sebelumnya — harus baseline BULAN SEBELUM $bulan, bukan
+        // sekadar "paling baru secara global". Kalau $bulan sendiri yang
+        // paling baru (kasus paling umum: buka modal buat bulan berjalan),
+        // "paling baru global" adalah $bulan itu sendiri, bukan bulan
+        // sebelumnya, dan delta yang dihitung form jadi selalu nol.
+        $previous = $this->previousPortofolio($userId, $bulan);
+
         return response()->json([
             'bulan' => $bulan,
             'existing' => $existing,
             'lastHargaEmas' => $last ? (int) $last->harga_emas : null,
+            'lastItems' => $previous ? $previous->items : [],
             'investmentTypes' => InvestmentType::where('user_id', $userId)->orderBy('urutan')->get(),
             'aktifKontrak' => KontrakCicilanEmas::aktifUntuk($userId),
         ]);
@@ -251,11 +262,7 @@ class PortofolioController extends Controller
     {
         $portofolio->load('items');
 
-        $previous = Portofolio::where('user_id', $portofolio->user_id)
-            ->where('bulan', '<', $portofolio->bulan)
-            ->orderByDesc('bulan')
-            ->with('items')
-            ->first();
+        $previous = $this->previousPortofolio($portofolio->user_id, $portofolio->bulan);
 
         $awalBulan = $portofolio->bulan.'-01';
         $akhirBulan = now()->parse($awalBulan)->endOfMonth()->toDateString();
@@ -332,5 +339,18 @@ class PortofolioController extends Controller
                 'jumlah' => $item['unit'] === 'rupiah' ? ($item['jumlah'] ?? 0) : null,
             ]);
         }
+    }
+
+    // Baseline bulan sebelumnya untuk delta (cashflow) maupun hint di form
+    // Catat — bulan langsung sebelum $bulan, BUKAN sekadar row bulan-terbaru
+    // milik user (yang bisa saja $bulan itu sendiri kalau sedang mengedit
+    // bulan berjalan).
+    private function previousPortofolio(int $userId, string $bulan): ?Portofolio
+    {
+        return Portofolio::with('items')
+            ->where('user_id', $userId)
+            ->where('bulan', '<', $bulan)
+            ->orderByDesc('bulan')
+            ->first();
     }
 }

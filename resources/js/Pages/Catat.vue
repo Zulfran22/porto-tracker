@@ -14,6 +14,7 @@ import { inputClass } from '@/Composables/useFormStyles'
 
 const props = defineProps({
     lastHargaEmas: { type: Number, default: null },
+    lastItems: { type: Array, default: () => [] },
     investmentTypes: { type: Array, default: () => [] },
     aktifKontrak:  { type: Object, default: null },
 })
@@ -31,13 +32,21 @@ const tenorEndLabel  = props.aktifKontrak
 const now = new Date()
 const bulanDefault = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
 
+// Default field ke saldo bulan lalu (bukan 0/blank) supaya kalau user tidak
+// menyentuh item yang memang tidak berubah bulan ini, delta yang dihitung
+// PortfolioItemFields tetap nol — bukan kelihatan seperti "tarik semua saldo"
+// (lihat komentar di PortfolioItemFields.vue).
 function buildItems(types) {
-    return types.map(t => ({
-        type_name: t.name,
-        unit: t.unit,
-        gram: t.unit === 'gram' ? '' : null,
-        jumlah: t.unit === 'rupiah' ? 0 : null,
-    }))
+    const baseByName = Object.fromEntries(props.lastItems.map(i => [i.type_name, i]))
+    return types.map(t => {
+        const base = baseByName[t.name]
+        return {
+            type_name: t.name,
+            unit: t.unit,
+            gram: t.unit === 'gram' ? (base ? Number(base.gram) : '') : null,
+            jumlah: t.unit === 'rupiah' ? (base ? Number(base.jumlah) : 0) : null,
+        }
+    })
 }
 
 const form = useForm({
@@ -132,6 +141,7 @@ function hapusType() {
                     :items="form.items"
                     v-model:harga-emas="form.harga_emas"
                     :last-harga-emas="lastHargaEmas"
+                    :last-items="lastItems"
                     :harga-emas-error="form.errors.harga_emas"
                     :aktif-kontrak="aktifKontrak"
                 />

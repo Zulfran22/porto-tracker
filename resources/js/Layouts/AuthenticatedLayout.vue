@@ -81,6 +81,7 @@ const contextError = ref('')
 const lastRequestedId = ref(null)
 const modalInvestmentTypes = ref([])
 const modalLastHargaEmas = ref(null)
+const modalLastItems = ref([])
 const modalAktifKontrak = ref(null)
 const catatForm = useForm({
     bulan: '',
@@ -90,16 +91,22 @@ const catatForm = useForm({
     items: [],
 })
 
-function itemsFromTypes(types, existingItems) {
+// Kalau item BELUM ada data tersimpan untuk bulan yang dibuka (existing),
+// default ke saldo bulan lalu (baseline) — bukan 0/blank — supaya delta yang
+// dihitung PortfolioItemFields nol kalau user tidak menyentuh field itu,
+// bukan kelihatan seperti "tarik semua saldo".
+function itemsFromTypes(types, existingItems, baselineItems) {
     const byName = Object.fromEntries((existingItems ?? []).map(i => [i.type_name, i]))
+    const baseByName = Object.fromEntries((baselineItems ?? []).map(i => [i.type_name, i]))
     return types.map(t => {
         const existing = byName[t.name]
-        return {
-            type_name: t.name,
-            unit: t.unit,
-            gram: t.unit === 'gram' ? (existing ? Number(existing.gram) : '') : null,
-            jumlah: t.unit === 'rupiah' ? (existing ? Number(existing.jumlah) : 0) : null,
+        const base = baseByName[t.name]
+        if (t.unit === 'gram') {
+            const gram = existing ? Number(existing.gram) : (base ? Number(base.gram) : '')
+            return { type_name: t.name, unit: t.unit, gram, jumlah: null }
         }
+        const jumlah = existing ? Number(existing.jumlah) : (base ? Number(base.jumlah) : 0)
+        return { type_name: t.name, unit: t.unit, gram: null, jumlah }
     })
 }
 
@@ -134,6 +141,7 @@ async function openCatat(id = null) {
         existingId.value = p ? p.id : null
         modalInvestmentTypes.value = data.investmentTypes ?? []
         modalLastHargaEmas.value = data.lastHargaEmas ?? null
+        modalLastItems.value = data.lastItems ?? []
         modalAktifKontrak.value = data.aktifKontrak ?? null
 
         catatForm.bulan      = data.bulan
@@ -144,7 +152,7 @@ async function openCatat(id = null) {
         // Catat via tombol "Catat pembayaran" (?bayar=1).
         catatForm.cicilan    = p ? p.cicilan : ''
         catatForm.catatan    = p ? (p.catatan ?? '') : ''
-        catatForm.items      = itemsFromTypes(modalInvestmentTypes.value, p?.items)
+        catatForm.items      = itemsFromTypes(modalInvestmentTypes.value, p?.items, modalLastItems.value)
     } catch {
         contextError.value = 'Gagal memuat data. Coba lagi.'
     } finally {
@@ -460,6 +468,7 @@ defineExpose({ openCatat })
                                 :items="catatForm.items"
                                 v-model:harga-emas="catatForm.harga_emas"
                                 :last-harga-emas="modalLastHargaEmas"
+                                :last-items="modalLastItems"
                                 :harga-emas-error="catatForm.errors.harga_emas"
                                 :aktif-kontrak="modalAktifKontrak"
                             />

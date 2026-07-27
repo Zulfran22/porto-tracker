@@ -11,6 +11,7 @@ const props = defineProps({
     items: { type: Array, required: true },
     hargaEmas: { type: [Number, String], default: '' },
     lastHargaEmas: { type: Number, default: null },
+    lastItems: { type: Array, default: () => [] },
     hargaEmasError: { type: String, default: '' },
     aktifKontrak: { type: Object, default: null },
 })
@@ -20,6 +21,43 @@ const gramItem    = computed(() => props.items.find(i => i.unit === 'gram'))
 const rupiahItems = computed(() => props.items.filter(i => i.unit === 'rupiah'))
 const needsHargaEmas = computed(() =>
     (gramItem.value && Number(gramItem.value.gram) > 0) || !!props.aktifKontrak)
+
+// item.gram/item.jumlah yang DIKIRIM KE BACKEND tetap SALDO KUMULATIF (lihat
+// komentar syncItemTransactions di PortofolioController) — kontrak API & tes
+// tidak berubah. Yang berubah cuma FORM-nya: user tidak pernah disodori
+// konsep "total"/saldo kumulatif sama sekali (itu yang bikin bingung & salah
+// hitung manual — kejadian nyata: total diisi 1 gram padahal maksudnya
+// nambah 1 gram dari saldo lama 0,5). Satu-satunya input yang tampil adalah
+// "bulan ini" (delta, boleh negatif buat penarikan); total kumulatif dihitung
+// otomatis di baliknya lalu ditulis ke item.gram/jumlah, dan hanya
+// ditampilkan sebagai teks info (bukan field), sebagai bukti/penegasan —
+// saldo kumulatif sendiri baru benar-benar ditampilkan di Dashboard.
+const lastItemByName = computed(() => Object.fromEntries(props.lastItems.map(i => [i.type_name, i])))
+function lastGramFor(item) {
+    const prev = lastItemByName.value[item.type_name]
+    return prev ? Number(prev.gram) : null
+}
+function lastJumlahFor(item) {
+    const prev = lastItemByName.value[item.type_name]
+    return prev ? Number(prev.jumlah) : null
+}
+function round4(n) {
+    return Math.round(n * 10000) / 10000
+}
+function gramDeltaFor(item) {
+    if (item.gram === '' || item.gram === null || item.gram === undefined) return ''
+    return round4(Number(item.gram) - (lastGramFor(item) ?? 0))
+}
+function setGramDelta(item, v) {
+    item.gram = v === '' ? '' : round4((lastGramFor(item) ?? 0) + Number(v))
+}
+function jumlahDeltaFor(item) {
+    if (item.jumlah === '' || item.jumlah === null || item.jumlah === undefined) return ''
+    return Math.round(Number(item.jumlah) - (lastJumlahFor(item) ?? 0))
+}
+function setJumlahDelta(item, v) {
+    item.jumlah = v === '' ? '' : Math.round((lastJumlahFor(item) ?? 0) + Number(v))
+}
 
 const localHargaEmas = computed({
     get: () => props.hargaEmas,
@@ -70,9 +108,19 @@ async function fetchHargaEmas() {
         <CardContent class="px-4 pb-4 space-y-3">
             <div>
                 <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                    <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> {{ gramItem.type_name }} — total gram dimiliki
+                    <Coins :size="12" class="text-yellow-500 dark:text-yellow-400"/> {{ gramItem.type_name }} — beli/tambah bulan ini (gram)
                 </label>
-                <input type="number" step="0.0001" min="0" inputmode="decimal" v-model="gramItem.gram" placeholder="mis. 0.01" :class="inputClass"/>
+                <input type="number" step="0.0001" inputmode="decimal"
+                    :value="gramDeltaFor(gramItem)" @input="setGramDelta(gramItem, $event.target.value)"
+                    placeholder="0" :class="inputClass"/>
+                <p class="text-xs text-zinc-400 mt-1">
+                    <template v-if="lastGramFor(gramItem) !== null">
+                        Saldo sebelumnya {{ lastGramFor(gramItem).toFixed(4) }} gram → jadi {{ Number(gramItem.gram || 0).toFixed(4) }} gram
+                    </template>
+                    <template v-else>
+                        Catatan pertama untuk {{ gramItem.type_name }} — jadi saldo awal.
+                    </template>
+                </p>
             </div>
             <div>
                 <div class="flex justify-between items-center mb-1.5">
@@ -119,9 +167,19 @@ async function fetchHargaEmas() {
         <CardContent class="px-4 pb-4 space-y-3">
             <div v-for="item in rupiahItems" :key="item.type_name">
                 <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
-                    <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> {{ item.type_name }} (Rp)
+                    <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> {{ item.type_name }} — setoran/tarik bulan ini (Rp)
                 </label>
-                <input type="number" v-model="item.jumlah" :class="inputClass"/>
+                <input type="number"
+                    :value="jumlahDeltaFor(item)" @input="setJumlahDelta(item, $event.target.value)"
+                    placeholder="0" :class="inputClass"/>
+                <p class="text-xs text-zinc-400 mt-1">
+                    <template v-if="lastJumlahFor(item) !== null">
+                        Saldo sebelumnya Rp{{ lastJumlahFor(item).toLocaleString('id-ID') }} → jadi Rp{{ Number(item.jumlah || 0).toLocaleString('id-ID') }}
+                    </template>
+                    <template v-else>
+                        Catatan pertama untuk {{ item.type_name }} — jadi saldo awal.
+                    </template>
+                </p>
             </div>
         </CardContent>
     </Card>
