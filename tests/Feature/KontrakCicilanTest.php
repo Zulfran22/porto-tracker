@@ -306,6 +306,38 @@ class KontrakCicilanTest extends TestCase
         $this->assertEqualsWithDelta(1.0, $lunas->gram_terbayar, 0.0001);
     }
 
+    public function test_bulan_belum_tercatat_mendeteksi_bulan_tanpa_data_portofolio(): void
+    {
+        $user = User::factory()->create();
+
+        $kontrak = KontrakCicilanEmas::create([
+            'user_id' => $user->id,
+            'nomor_kontrak' => 'BT-1',
+            'tanggal_mulai' => now()->subMonths(3)->startOfMonth()->toDateString(),
+            'tanggal_selesai' => now()->addMonths(9)->toDateString(),
+            'tenor_bulan' => 12,
+            'total_gram' => 4,
+            'angsuran_bulan' => 1000000,
+            'status' => 'aktif',
+        ]);
+
+        $bulan1 = now()->subMonths(3)->format('Y-m');
+        $bulan2 = now()->subMonths(2)->format('Y-m');
+        $bulan3 = now()->subMonths(1)->format('Y-m');
+
+        // bulan1 & bulan2 dicatat, bulan3 (bulan lalu) sengaja TIDAK —
+        // bulan berjalan (now()) tidak dianggap "belum tercatat" karena
+        // belum tentu terlambat, masih bisa dicatat nanti bulan ini.
+        Portofolio::create(['user_id' => $user->id, 'bulan' => $bulan1, 'harga_emas' => 2000000, 'cicilan' => 1000000]);
+        Portofolio::create(['user_id' => $user->id, 'bulan' => $bulan2, 'harga_emas' => 2500000, 'cicilan' => 1500000]);
+
+        $this->assertSame([$bulan3], $kontrak->bulan_belum_tercatat);
+
+        // Setelah bulan3 dicatat juga, tidak ada lagi yang bolong.
+        Portofolio::create(['user_id' => $user->id, 'bulan' => $bulan3, 'harga_emas' => 2600000, 'cicilan' => 1000000]);
+        $this->assertSame([], $kontrak->fresh()->bulan_belum_tercatat);
+    }
+
     public function test_file_kontrak_mengikuti_disk_upload_yang_dikonfigurasi(): void
     {
         // Di produksi (Render) UPLOADS_DISK=s3 (Backblaze B2) karena filesystem

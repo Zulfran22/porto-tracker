@@ -36,7 +36,7 @@ class KontrakCicilanEmas extends Model
         'biaya_admin' => 'integer',
     ];
 
-    protected $appends = ['bep_per_gram', 'gram_terbayar'];
+    protected $appends = ['bep_per_gram', 'gram_terbayar', 'bulan_belum_tercatat'];
 
     public function user(): BelongsTo
     {
@@ -84,6 +84,37 @@ class KontrakCicilanEmas extends Model
     public function getGramTerbayarAttribute(): float
     {
         return $this->gramTerbayarPada(now()->format('Y-m'));
+    }
+
+    // gramTerbayarPada() cuma menjumlah bulan yang ADA baris Portofolio-nya
+    // — bulan yang belum sempat dicatat diam-diam dianggap 0, jadi progress
+    // under-count tanpa ada tanda apa pun. Ini daftar bulan (format Y-m)
+    // sejak kontrak mulai s.d. bulan LALU (bulan berjalan belum dianggap
+    // terlambat) yang belum punya baris Portofolio sama sekali — dipakai
+    // buat tampilkan peringatan di UI, bukan buat menebak nilainya.
+    public function getBulanBelumTercatatAttribute(): array
+    {
+        $mulai = $this->tanggal_mulai->format('Y-m');
+        $akhir = min($this->tanggal_selesai->format('Y-m'), now()->subMonth()->format('Y-m'));
+
+        if ($akhir < $mulai) {
+            return [];
+        }
+
+        $semuaBulan = [];
+        $cursor = $this->tanggal_mulai->copy()->startOfMonth();
+        $akhirDate = now()->parse($akhir.'-01');
+        while ($cursor->lte($akhirDate)) {
+            $semuaBulan[] = $cursor->format('Y-m');
+            $cursor->addMonth();
+        }
+
+        $tercatat = Portofolio::where('user_id', $this->user_id)
+            ->whereIn('bulan', $semuaBulan)
+            ->pluck('bulan')
+            ->all();
+
+        return array_values(array_diff($semuaBulan, $tercatat));
     }
 
     // Harga breakeven per gram: total biaya kontrak (angsuran selama tenor + sewa modal + biaya admin) dibagi total gram

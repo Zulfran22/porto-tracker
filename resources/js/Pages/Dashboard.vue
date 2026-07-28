@@ -45,6 +45,11 @@ const hasKontrak      = computed(() => !!props.aktifKontrak)
 const cicilanGram     = computed(() => Number(last.value?.gram_cicilan ?? 0))
 const cicilanBulanan  = computed(() => hasKontrak.value ? Number(props.aktifKontrak.angsuran_bulan) : 0)
 const bepTarget       = computed(() => hasKontrak.value ? Number(props.aktifKontrak.bep_per_gram) : 0)
+// gram_terbayar dihitung dari cicilan riil yang tercatat tiap bulan (lihat
+// KontrakCicilanEmas::gramTerbayarPada) — bulan yang belum sempat dicatat
+// diam-diam dianggap 0, jadi progress bisa under-count tanpa tanda apa pun
+// kalau tidak diperingatkan di sini.
+const bulanBelumTercatat = computed(() => hasKontrak.value ? (props.aktifKontrak.bulan_belum_tercatat ?? []) : [])
 
 // Total per bulan dihitung di backend (Portofolio::getTotalAttribute) agar satu sumber
 // kebenaran dengan gram cicilan dari kontrak aktif — lihat app/Models/Portofolio.php.
@@ -321,6 +326,11 @@ const exportPortofolio = () => {
                                 <p class="text-xs text-zinc-500">Kurang</p>
                                 <p class="text-xs font-medium text-orange-500 dark:text-orange-400 mt-0.5">{{ fmt(Math.max(0, bepTarget - hargaNow)) }}</p>
                             </div>
+                        </div>
+                        <div v-if="bulanBelumTercatat.length"
+                            class="mt-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                            <AlertTriangle :size="12" class="shrink-0 mt-0.5"/>
+                            <span>{{ bulanBelumTercatat.length }} bulan belum tercatat ({{ bulanBelumTercatat.join(', ') }}) — progress gram cicilan di atas belum menghitung cicilan bulan itu.</span>
                         </div>
                     </CardContent>
                 </Card>

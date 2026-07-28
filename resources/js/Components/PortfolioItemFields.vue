@@ -163,7 +163,7 @@ async function fetchHargaEmas() {
                 </label>
                 <CurrencyInput
                     :model-value="jumlahDeltaFor(item)" @update:model-value="v => setJumlahDelta(item, v)"
-                    placeholder="0"/>
+                    placeholder="0" allow-negative/>
             </div>
         </CardContent>
     </Card>
