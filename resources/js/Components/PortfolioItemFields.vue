@@ -77,13 +77,12 @@ async function fetchHargaEmas() {
         const data = await res.json()
         if (!data.success) throw new Error(data.message)
         hargaFetched.value = {
-            xauUsd:        data.xau_usd?.toFixed?.(2),
-            usdIdr:        data.usd_idr?.toLocaleString?.('id-ID'),
-            spotIdr:       data.spot_idr.toLocaleString('id-ID'),
-            pegadaian:     data.pegadaian,
-            markupPercent: data.markup_percent,
+            source:    data.source,
+            tanggal:   data.tanggal,
+            hargaJual: data.harga_jual,
+            hargaBeli: data.harga_beli,
         }
-        localHargaEmas.value = data.pegadaian
+        localHargaEmas.value = data.harga_jual
     } catch {
         errorHarga.value = props.lastHargaEmas
             ? `Gagal ambil harga — menggunakan harga terakhir (Rp${props.lastHargaEmas.toLocaleString('id-ID')}).`
@@ -127,15 +126,25 @@ async function fetchHargaEmas() {
                     </button>
                 </div>
                 <div v-if="hargaFetched" class="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-yellow-700/20 rounded-xl p-3 mb-2 space-y-1.5">
-                    <div class="flex justify-between text-xs">
-                        <span class="text-zinc-500">Spot/gram</span>
-                        <span class="text-zinc-700 dark:text-zinc-300">Rp{{ hargaFetched.spotIdr }}</span>
-                    </div>
-                    <Separator class="bg-zinc-200 dark:bg-zinc-700 my-1"/>
-                    <div class="flex justify-between text-xs">
-                        <span class="text-yellow-600 dark:text-yellow-400 font-medium">Est. Pegadaian (+{{ hargaFetched.markupPercent }}%)</span>
-                        <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.pegadaian.toLocaleString('id-ID') }}</span>
-                    </div>
+                    <template v-if="hargaFetched.source === 'pegadaian'">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-yellow-600 dark:text-yellow-400 font-medium">Harga jual Tabungan Emas (beli)</span>
+                            <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.hargaJual.toLocaleString('id-ID') }}</span>
+                        </div>
+                        <Separator class="bg-zinc-200 dark:bg-zinc-700 my-1"/>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Harga beli (buyback)</span>
+                            <span class="text-zinc-700 dark:text-zinc-300">Rp{{ hargaFetched.hargaBeli.toLocaleString('id-ID') }}</span>
+                        </div>
+                        <p class="text-[11px] text-zinc-400">Resmi Pegadaian, {{ hargaFetched.tanggal }}</p>
+                    </template>
+                    <template v-else>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-yellow-600 dark:text-yellow-400 font-medium">Estimasi dari spot (Pegadaian tidak terjangkau)</span>
+                            <span class="text-yellow-600 dark:text-yellow-400 font-medium">Rp{{ hargaFetched.hargaJual.toLocaleString('id-ID') }}</span>
+                        </div>
+                        <p class="text-[11px] text-amber-600 dark:text-amber-400">⚠ Cuma perkiraan — cek manual di app Pegadaian Digital kalau butuh presisi.</p>
+                    </template>
                 </div>
                 <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                     <AlertTriangle :size="12"/> {{ errorHarga }}
