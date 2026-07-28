@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\KontrakCicilanEmas;
+use App\Models\Portofolio;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -251,42 +252,58 @@ class KontrakCicilanTest extends TestCase
         Storage::disk('local')->assertExists($kontrak->file_kontrak);
     }
 
-    public function test_gram_terbayar_proporsional_dengan_angsuran_berjalan(): void
+    public function test_gram_terbayar_dihitung_dari_cicilan_riil_dibagi_harga_emas(): void
     {
         $user = User::factory()->create();
 
-        // Mulai 6 bulan lalu, tenor 12, total 4g → 7 angsuran terbayar
-        // (angsuran pertama dibayar saat kontrak dimulai) → 4 × 7/12 ≈ 2.3333g.
         $kontrak = KontrakCicilanEmas::create([
             'user_id' => $user->id,
             'nomor_kontrak' => 'GT-1',
-            'tanggal_mulai' => now()->subMonths(6)->toDateString(),
-            'tanggal_selesai' => now()->addMonths(6)->toDateString(),
+            'tanggal_mulai' => now()->subMonths(3)->startOfMonth()->toDateString(),
+            'tanggal_selesai' => now()->addMonths(9)->toDateString(),
             'tenor_bulan' => 12,
             'total_gram' => 4,
             'angsuran_bulan' => 1000000,
             'status' => 'aktif',
         ]);
 
-        $this->assertEqualsWithDelta(2.3333, $kontrak->gram_terbayar, 0.0001);
+        $bulan1 = now()->subMonths(3)->format('Y-m');
+        $bulan2 = now()->subMonths(2)->format('Y-m');
+        $bulan3 = now()->subMonths(1)->format('Y-m');
 
-        // Point-in-time: bulan sebelum kontrak = 0; bulan mulai = 1 angsuran.
-        $this->assertSame(0.0, $kontrak->gramTerbayarPada(now()->subMonths(7)->format('Y-m')));
-        $this->assertEqualsWithDelta(0.3333, $kontrak->gramTerbayarPada(now()->subMonths(6)->format('Y-m')), 0.0001);
+        // Bulan pertama: bayar Rp1.000.000 saat harga Rp2.000.000/gram → 0,5g.
+        Portofolio::create(['user_id' => $user->id, 'bulan' => $bulan1, 'harga_emas' => 2000000, 'cicilan' => 1000000]);
+        // Bulan kedua: bayar lebih besar dari angsuran normal, Rp1.500.000
+        // saat harga Rp2.500.000/gram → 0,6g — progress ikut menyesuaikan,
+        // bukan dianggap rata seperti jadwal.
+        Portofolio::create(['user_id' => $user->id, 'bulan' => $bulan2, 'harga_emas' => 2500000, 'cicilan' => 1500000]);
+        // Bulan ketiga (bulan3) sengaja TIDAK dicatat — belum sempat isi data
+        // portofolio bulan itu, jadi belum menambah gram terbayar.
 
-        // Melewati tenor → dibatasi total gram kontrak, tidak lebih.
+        $this->assertSame(0.0, $kontrak->gramTerbayarPada(now()->subMonths(4)->format('Y-m')));
+        $this->assertEqualsWithDelta(0.5, $kontrak->gramTerbayarPada($bulan1), 0.0001);
+        $this->assertEqualsWithDelta(1.1, $kontrak->gramTerbayarPada($bulan2), 0.0001);
+        $this->assertEqualsWithDelta(1.1, $kontrak->gramTerbayarPada($bulan3), 0.0001);
+        $this->assertEqualsWithDelta(1.1, $kontrak->gram_terbayar, 0.0001);
+
+        // Total pembayaran melebihi total_gram kontrak → dibatasi, tidak lebih.
+        $overpay = User::factory()->create();
         $lunas = KontrakCicilanEmas::create([
-            'user_id' => $user->id,
+            'user_id' => $overpay->id,
             'nomor_kontrak' => 'GT-2',
-            'tanggal_mulai' => now()->subMonths(24)->toDateString(),
-            'tanggal_selesai' => now()->subMonths(12)->toDateString(),
+            'tanggal_mulai' => now()->subMonths(2)->startOfMonth()->toDateString(),
+            'tanggal_selesai' => now()->addMonths(10)->toDateString(),
             'tenor_bulan' => 12,
-            'total_gram' => 4,
+            'total_gram' => 1,
             'angsuran_bulan' => 1000000,
             'status' => 'aktif',
         ]);
+        Portofolio::create([
+            'user_id' => $overpay->id, 'bulan' => now()->subMonths(2)->format('Y-m'),
+            'harga_emas' => 1000000, 'cicilan' => 2000000,
+        ]);
 
-        $this->assertEqualsWithDelta(4.0, $lunas->gram_terbayar, 0.0001);
+        $this->assertEqualsWithDelta(1.0, $lunas->gram_terbayar, 0.0001);
     }
 
     public function test_file_kontrak_mengikuti_disk_upload_yang_dikonfigurasi(): void

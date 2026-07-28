@@ -52,29 +52,33 @@ class KontrakCicilanEmas extends Model
     }
 
     // Estimasi gram yang sudah menjadi hak user PADA bulan snapshot tertentu
-    // (format Y-m). Aplikasi tidak mencatat pembayaran per angsuran, jadi
-    // dipakai proxy jadwal: angsuran pertama dianggap dibayar di bulan kontrak
-    // dimulai, bertambah satu tiap bulan, dibatasi tenor. Point-in-time —
-    // bulan sebelum kontrak menghasilkan 0, dan bulan lama dinilai dengan
-    // angsuran yang sudah berjalan pada bulan ITU, bukan kondisi hari ini
-    // (dulu seluruh riwayat/Grafik ditulis ulang tiap angsuran bertambah).
+    // (format Y-m) — dihitung dari NOMINAL CICILAN YANG BENAR-BENAR DICATAT
+    // tiap bulan (field "Cicilan emas (Rp)" di data portofolio bulan itu),
+    // dibagi harga emas bulan itu juga, dijumlah dari bulan kontrak mulai
+    // sampai $bulan. Bukan proxy jadwal rata (dulu: total_gram x bulan
+    // berjalan / tenor) — kalau angsuran riil beda dari jadwal (lebih/kurang
+    // bayar), progress gram ikut menyesuaikan, bukan menganggap semua bulan
+    // sama besar. Dibatasi maksimal total_gram kontrak. Point-in-time — bulan
+    // lama dinilai dari data s.d. bulan ITU saja, tidak terpengaruh bulan
+    // sesudahnya (riwayat/Grafik tidak ditulis ulang retroaktif).
     public function gramTerbayarPada(string $bulan): float
     {
-        if ($this->tenor_bulan <= 0 || $this->total_gram <= 0) {
+        if ($this->total_gram <= 0) {
             return 0.0;
         }
 
-        $selisihBulan = (int) floor(
-            $this->tanggal_mulai->copy()->startOfMonth()->diffInMonths(now()->parse($bulan.'-01'))
-        );
+        $gram = Portofolio::where('user_id', $this->user_id)
+            ->where('bulan', '>=', $this->tanggal_mulai->format('Y-m'))
+            ->where('bulan', '<=', $bulan)
+            ->get(['cicilan', 'harga_emas'])
+            ->reduce(function (float $gram, Portofolio $p) {
+                $cicilan = (int) ($p->cicilan ?? 0);
+                $harga = (int) ($p->harga_emas ?? 0);
 
-        if ($selisihBulan < 0) {
-            return 0.0;
-        }
+                return $gram + ($cicilan > 0 && $harga > 0 ? $cicilan / $harga : 0.0);
+            }, 0.0);
 
-        $angsuranTerbayar = min($this->tenor_bulan, $selisihBulan + 1);
-
-        return round($this->total_gram * $angsuranTerbayar / $this->tenor_bulan, 4);
+        return round(min($gram, $this->total_gram), 4);
     }
 
     public function getGramTerbayarAttribute(): float

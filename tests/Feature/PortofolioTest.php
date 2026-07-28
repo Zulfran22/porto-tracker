@@ -63,7 +63,7 @@ class PortofolioTest extends TestCase
     // cicilanPaid mengontrol notif jatuh tempo di dashboard: hilang begitu data
     // bulan berjalan tersimpan dengan field cicilan terisi (lewat halaman Catat
     // yang dituju tombol "Catat pembayaran" di notif).
-    public function test_total_menghitung_gram_kontrak_proporsional_pada_bulan_snapshot(): void
+    public function test_total_menghitung_gram_kontrak_dari_cicilan_riil_pada_bulan_snapshot(): void
     {
         $user = User::factory()->create();
 
@@ -71,7 +71,7 @@ class PortofolioTest extends TestCase
         KontrakCicilanEmas::create([
             'user_id' => $user->id,
             'nomor_kontrak' => 'TOT-1',
-            'tanggal_mulai' => now()->subMonths(6)->toDateString(),
+            'tanggal_mulai' => now()->subMonths(6)->startOfMonth()->toDateString(),
             'tanggal_selesai' => now()->addMonths(6)->toDateString(),
             'tenor_bulan' => 12,
             'total_gram' => 4,
@@ -79,19 +79,21 @@ class PortofolioTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        // Snapshot bulan lalu dinilai dengan angsuran yang berjalan PADA bulan
-        // itu (6 dari 12 → 2g), bukan kondisi hari ini — riwayat tidak boleh
-        // ditulis ulang tiap angsuran bertambah.
+        // Snapshot bulan lalu dinilai dari cicilan yang benar-benar tercatat
+        // s.d. bulan itu (di sini cuma bulan itu sendiri: Rp1.000.000 /
+        // harga Rp1.000.000/gram = 1g), bukan kondisi hari ini — riwayat
+        // tidak boleh ditulis ulang tiap kali angsuran baru ditambahkan.
         $bulanLalu = Portofolio::create([
             'user_id' => $user->id,
             'bulan' => now()->subMonth()->format('Y-m'),
             'harga_emas' => 1000000,
-            'cicilan' => 0,
+            'cicilan' => 1000000,
         ]);
 
-        $this->assertSame(2000000, $bulanLalu->fresh()->total);
+        $this->assertSame(1000000, $bulanLalu->fresh()->total);
 
-        // Snapshot SEBELUM kontrak ada tidak kebagian gram kontrak sama sekali.
+        // Snapshot SEBELUM kontrak ada tidak kebagian gram kontrak sama
+        // sekali, meski bulan itu sendiri tidak ada cicilan.
         $praKontrak = Portofolio::create([
             'user_id' => $user->id,
             'bulan' => now()->subMonths(8)->format('Y-m'),
