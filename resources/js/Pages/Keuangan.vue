@@ -12,6 +12,7 @@ import { fmt } from '@/Composables/useCurrency'
 import { useSaldoVisibility } from '@/Composables/useSaldoVisibility'
 import { inputClass } from '@/Composables/useFormStyles'
 import { useEscapeKey } from '@/Composables/useEscapeKey'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 import {
     Wallet, Calendar, Tag, StickyNote, Trash2, Loader2,
     UtensilsCrossed, Car, ShoppingBag, Film, HeartPulse, MoreHorizontal,
@@ -495,7 +496,7 @@ function fmtTanggal(tgl) {
                         <select v-model="budgetForm.kategori" aria-label="Kategori budget" :class="inputClass">
                             <option v-for="k in allExpenseKategori" :key="k" :value="k">{{ k }}</option>
                         </select>
-                        <input type="number" v-model="budgetForm.limit_jumlah" min="0" placeholder="Limit Rp" aria-label="Limit budget (Rp)" :class="inputClass"/>
+                        <CurrencyInput v-model="budgetForm.limit_jumlah" placeholder="Limit Rp" aria-label="Limit budget (Rp)"/>
                         <button type="submit" :disabled="budgetForm.processing"
                             class="px-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 active:bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50 flex items-center justify-center">
                             <Loader2 v-if="budgetForm.processing" :size="15" class="animate-spin"/>
@@ -672,8 +673,7 @@ function fmtTanggal(tgl) {
                         </div>
                         <div>
                             <label for="recurring-jumlah" class="text-xs text-zinc-500 dark:text-zinc-400 mb-1 block">Jumlah (Rp)</label>
-                            <input id="recurring-jumlah" v-model="recurringForm.jumlah" type="number" placeholder="0" min="1"
-                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+                            <CurrencyInput id="recurring-jumlah" v-model="recurringForm.jumlah" placeholder="0"/>
                             <p v-if="recurringForm.errors.jumlah" class="text-xs text-red-500 mt-1">{{ recurringForm.errors.jumlah }}</p>
                         </div>
                         <div>
@@ -870,7 +870,7 @@ function fmtTanggal(tgl) {
                                 <label for="quick-add-jumlah" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Wallet :size="12" class="text-zinc-400"/> Jumlah (Rp)
                                 </label>
-                                <input id="quick-add-jumlah" type="number" v-model="form.jumlah" placeholder="mis. 25000" :class="inputClass"/>
+                                <CurrencyInput id="quick-add-jumlah" v-model="form.jumlah" placeholder="mis. 25.000"/>
                                 <p v-if="form.errors.jumlah" class="text-xs text-red-500 mt-1">{{ form.errors.jumlah }}</p>
                             </div>
 

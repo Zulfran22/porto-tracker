@@ -11,7 +11,7 @@ import {
     Clock, Calendar, Code2, Hash, AlertTriangle
 } from 'lucide-vue-next'
 import { fmt, fmtJt } from '@/Composables/useCurrency'
-import { inputClass } from '@/Composables/useFormStyles'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 import { DEFAULT_BUDGET } from '@/Composables/useFinanceConstants'
 
 const props = defineProps({
@@ -190,7 +190,7 @@ const keuntungan  = computed(() => nilaiAkhir.value - modalTotal.value)
                     <!-- Budget -->
                     <div>
                         <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">Budget total/bulan (Rp)</label>
-                        <input type="number" step="100000" :min="BUDGET_MIN" :max="BUDGET_MAX" v-model.number="budget" :class="inputClass"/>
+                        <CurrencyInput v-model="budget"/>
                         <p class="text-xs text-zinc-400 mt-1">Min {{ fmt(BUDGET_MIN) }} — Maks {{ fmt(BUDGET_MAX) }}</p>
                     </div>
 

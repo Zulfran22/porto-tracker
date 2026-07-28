@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Separator } from '@/Components/ui/separator'
 import { Coins, TrendingUp, Globe, Loader2, AlertTriangle } from 'lucide-vue-next'
 import { inputClass } from '@/Composables/useFormStyles'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 
 // Dipakai bareng oleh Catat.vue (halaman penuh) dan modal "Catat" cepat di
 // AuthenticatedLayout.vue — supaya dua form ini tidak drift saat salah satu diubah.
@@ -139,7 +140,7 @@ async function fetchHargaEmas() {
                 <div v-if="errorHarga" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl p-2.5 mb-2 text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                     <AlertTriangle :size="12"/> {{ errorHarga }}
                 </div>
-                <input type="number" v-model="localHargaEmas" placeholder="mis. 2545000" :class="inputClass"/>
+                <CurrencyInput v-model="localHargaEmas" placeholder="mis. 2.545.000"/>
                 <p v-if="hargaEmasError" class="text-xs text-red-500 mt-1">{{ hargaEmasError }}</p>
                 <p v-else-if="lastHargaEmas && !localHargaEmas" class="text-xs text-zinc-400 mt-1">
                     Harga bulan lalu: Rp{{ lastHargaEmas.toLocaleString('id-ID') }}
@@ -160,9 +161,9 @@ async function fetchHargaEmas() {
                 <label class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                     <TrendingUp :size="12" class="text-green-500 dark:text-green-400"/> {{ item.type_name }} — setoran/tarik bulan ini (Rp)
                 </label>
-                <input type="number"
-                    :value="jumlahDeltaFor(item)" @input="setJumlahDelta(item, $event.target.value)"
-                    placeholder="0" :class="inputClass"/>
+                <CurrencyInput
+                    :model-value="jumlahDeltaFor(item)" @update:model-value="v => setJumlahDelta(item, v)"
+                    placeholder="0"/>
             </div>
         </CardContent>
     </Card>

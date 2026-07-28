@@ -5,6 +5,7 @@ import {
     Receipt, StickyNote, Paperclip
 } from 'lucide-vue-next'
 import { inputClass } from '@/Composables/useFormStyles'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -85,7 +86,7 @@ const fieldId = (name) => `${uid}-${name}`
             <label :for="fieldId('angsuran-bulan')" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                 <Wallet :size="12" class="text-zinc-400"/> Angsuran/bulan (Rp)
             </label>
-            <input :id="fieldId('angsuran-bulan')" type="number" v-model="form.angsuran_bulan" :class="inputClass"/>
+            <CurrencyInput :id="fieldId('angsuran-bulan')" v-model="form.angsuran_bulan"/>
             <p class="text-xs text-zinc-400 mt-1">Angsuran pokok saja, di luar sewa modal</p>
             <p v-if="form.errors.angsuran_bulan" class="text-xs text-red-500 mt-1">{{ form.errors.angsuran_bulan }}</p>
         </div>
@@ -96,14 +97,14 @@ const fieldId = (name) => `${uid}-${name}`
             <label :for="fieldId('sewa-modal')" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                 <Receipt :size="12" class="text-zinc-400"/> Sewa modal (Rp)
             </label>
-            <input :id="fieldId('sewa-modal')" type="number" v-model="form.sewa_modal" placeholder="mis. 2033750" :class="inputClass"/>
+            <CurrencyInput :id="fieldId('sewa-modal')" v-model="form.sewa_modal" placeholder="mis. 2.033.750"/>
             <p class="text-xs text-zinc-400 mt-1">Total sewa modal selama tenor. Kalau angsuran bulananmu <strong>sudah termasuk</strong> sewa modal, isi 0 — supaya BEP tidak menghitungnya dua kali.</p>
         </div>
         <div>
             <label :for="fieldId('biaya-admin')" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                 <Receipt :size="12" class="text-zinc-400"/> Biaya admin (Rp)
             </label>
-            <input :id="fieldId('biaya-admin')" type="number" v-model="form.biaya_admin" :class="inputClass"/>
+            <CurrencyInput :id="fieldId('biaya-admin')" v-model="form.biaya_admin"/>
         </div>
     </div>
 

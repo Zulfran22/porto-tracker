@@ -4,6 +4,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 import ConfirmModal from '@/Components/ConfirmModal.vue'
 import PortfolioItemFields from '@/Components/PortfolioItemFields.vue'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
 import { Badge } from '@/Components/ui/badge'
 import {
@@ -124,7 +125,7 @@ function hapusType() {
                             <label for="catat-page-cicilan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                 <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                             </label>
-                            <input id="catat-page-cicilan" type="number" v-model="form.cicilan" placeholder="0 kalau tidak punya cicilan emas" :class="inputClass"/>
+                            <CurrencyInput id="catat-page-cicilan" v-model="form.cicilan" placeholder="0 kalau tidak punya cicilan emas"/>
                             <p v-if="aktifKontrak" class="text-xs text-zinc-400 mt-1">
                                 Jatuh tempo tgl {{ new Date(aktifKontrak.tanggal_mulai).getDate() }} setiap bulan · kontrak lunas {{ tenorEndLabel }} · No. {{ aktifKontrak.nomor_kontrak }}
                             </p>

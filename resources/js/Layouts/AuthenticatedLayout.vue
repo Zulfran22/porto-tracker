@@ -33,6 +33,7 @@ import {
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
 import PageSkeleton from '@/Components/PageSkeleton.vue'
 import PortfolioItemFields from '@/Components/PortfolioItemFields.vue'
+import CurrencyInput from '@/Components/CurrencyInput.vue'
 import { useTheme } from '@/Composables/useTheme'
 import { useSaldoVisibility } from '@/Composables/useSaldoVisibility'
 import { inputClass } from '@/Composables/useFormStyles'
@@ -460,7 +461,7 @@ defineExpose({ openCatat })
                                 <label for="catat-cicilan" class="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mb-1.5">
                                     <Lock :size="12" class="text-yellow-600"/> Cicilan emas (Rp)
                                 </label>
-                                <input id="catat-cicilan" type="number" v-model="catatForm.cicilan" :class="inputClass"/>
+                                <CurrencyInput id="catat-cicilan" v-model="catatForm.cicilan"/>
                                 <p v-if="catatForm.errors.cicilan" class="text-xs text-red-500 mt-1">{{ catatForm.errors.cicilan }}</p>
                             </div>
 
