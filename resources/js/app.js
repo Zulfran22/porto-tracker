@@ -6,7 +6,12 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+// import.meta.env.VITE_APP_NAME butuh .env tersedia saat `npm run build` —
+// stage node-builder di Dockerfile produksi tidak meneruskan itu (env
+// backend Render cuma di-inject saat container jalan, bukan saat build
+// image), jadi selalu fallback ke default Vite dan judul tab jadi "Laravel".
+// App ini single-tenant, namanya tidak perlu dikonfigurasi per-environment.
+const appName = 'WealthID';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
