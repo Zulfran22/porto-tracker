@@ -28,10 +28,9 @@ const needsHargaEmas = computed(() =>
 // konsep "total"/saldo kumulatif sama sekali (itu yang bikin bingung & salah
 // hitung manual — kejadian nyata: total diisi 1 gram padahal maksudnya
 // nambah 1 gram dari saldo lama 0,5). Satu-satunya input yang tampil adalah
-// "bulan ini" (delta, boleh negatif buat penarikan); total kumulatif dihitung
-// otomatis di baliknya lalu ditulis ke item.gram/jumlah, dan hanya
-// ditampilkan sebagai teks info (bukan field), sebagai bukti/penegasan —
-// saldo kumulatif sendiri baru benar-benar ditampilkan di Dashboard.
+// "bulan ini" (delta, boleh negatif buat penarikan) — berdiri sendiri, tanpa
+// pratinjau saldo kumulatif di form ini. Saldo/total hasil kalkulasi baru
+// ditampilkan di Dashboard setelah disimpan.
 const lastItemByName = computed(() => Object.fromEntries(props.lastItems.map(i => [i.type_name, i])))
 function lastGramFor(item) {
     const prev = lastItemByName.value[item.type_name]
@@ -113,14 +112,6 @@ async function fetchHargaEmas() {
                 <input type="number" step="0.0001" inputmode="decimal"
                     :value="gramDeltaFor(gramItem)" @input="setGramDelta(gramItem, $event.target.value)"
                     placeholder="0" :class="inputClass"/>
-                <p class="text-xs text-zinc-400 mt-1">
-                    <template v-if="lastGramFor(gramItem) !== null">
-                        Saldo sebelumnya {{ lastGramFor(gramItem).toFixed(4) }} gram → jadi {{ Number(gramItem.gram || 0).toFixed(4) }} gram
-                    </template>
-                    <template v-else>
-                        Catatan pertama untuk {{ gramItem.type_name }} — jadi saldo awal.
-                    </template>
-                </p>
             </div>
             <div>
                 <div class="flex justify-between items-center mb-1.5">
@@ -172,14 +163,6 @@ async function fetchHargaEmas() {
                 <input type="number"
                     :value="jumlahDeltaFor(item)" @input="setJumlahDelta(item, $event.target.value)"
                     placeholder="0" :class="inputClass"/>
-                <p class="text-xs text-zinc-400 mt-1">
-                    <template v-if="lastJumlahFor(item) !== null">
-                        Saldo sebelumnya Rp{{ lastJumlahFor(item).toLocaleString('id-ID') }} → jadi Rp{{ Number(item.jumlah || 0).toLocaleString('id-ID') }}
-                    </template>
-                    <template v-else>
-                        Catatan pertama untuk {{ item.type_name }} — jadi saldo awal.
-                    </template>
-                </p>
             </div>
         </CardContent>
     </Card>
