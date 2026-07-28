@@ -59,7 +59,7 @@ services:
       - key: PHP_CLI_SERVER_WORKERS
         value: "4"
       - key: GOLD_PEGADAIAN_MARKUP
-        value: "1.04"
+        value: "1.30"
       - key: GOLD_FALLBACK_XAU_PRICE
         value: "3280"
       - key: SENTRY_LARAVEL_DSN
